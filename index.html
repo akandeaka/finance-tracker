@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Business Finance Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f172a; --card: #1e293b; --card2: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #22d3ee;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308;
+    --border: #334155;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5;
+    padding: 12px; max-width: 1200px; margin: 0 auto;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  h2 { font-size: 1.1rem; margin: 16px 0 8px; color: var(--accent); }
+  h3 { font-size: 0.95rem; margin-bottom: 6px; color: var(--muted); }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 12px; }
+
+  .tabs { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 4px; }
+  .tab {
+    padding: 8px 14px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer; white-space: nowrap; font-size: 0.85rem;
+    color: var(--text);
+  }
+  .tab.active { background: var(--accent); color: #0f172a; font-weight: 600; border-color: var(--accent); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; margin-bottom: 12px;
+  }
+  .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+  label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%; padding: 9px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 0.9rem; font-family: inherit;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); }
+
+  button {
+    padding: 10px 16px; border-radius: 6px; border: none; cursor: pointer;
+    font-size: 0.9rem; font-weight: 600; font-family: inherit;
+  }
+  .btn-primary { background: var(--accent); color: #0f172a; }
+  .btn-primary:hover { background: #06b6d4; }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-small { padding: 4px 8px; font-size: 0.75rem; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px; }
+  th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
+  .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .scroll { overflow-x: auto; }
+
+  .stat {
+    background: var(--card2); border-radius: 8px; padding: 10px 12px;
+  }
+  .stat .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .value { font-size: 1.15rem; font-weight: 700; margin-top: 2px; }
+
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+  .row > div { flex: 1; min-width: 120px; }
+  .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
+  .badge.won { background: rgba(34,197,94,0.2); color: var(--green); }
+  .badge.lost { background: rgba(239,68,68,0.2); color: var(--red); }
+  .badge.pending { background: rgba(234,179,8,0.2); color: var(--yellow); }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: #0f172a; padding: 10px 20px;
+    border-radius: 8px; font-weight: 600; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+
+  canvas { max-height: 280px; }
+  .muted { color: var(--muted); font-size: 0.8rem; }
+  .empty { text-align: center; color: var(--muted); padding: 20px; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<h1>💰 Business Finance Tracker</h1>
+<p class="subtitle">Mining • Bolt • Betting • Personal Expenses</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="dashboard">📊 Dashboard</div>
+  <div class="tab" data-tab="mining">⛏️ Mining</div>
+  <div class="tab" data-tab="bolt">🚗 Bolt</div>
+  <div class="tab" data-tab="betting">🎯 Betting</div>
+  <div class="tab" data-tab="expenses">🧾 Personal</div>
+  <div class="tab" data-tab="data">⚙️ Data</div>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div id="dashboard" class="panel active">
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>View Date</label>
+        <input type="date" id="dashDate" />
+      </div>
+      <div>
+        <label>Period</label>
+        <select id="dashPeriod">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <h2 id="dashTitle">Today's Summary</h2>
+
+  <div class="grid" id="dashStats"></div>
+
+  <h2>Profit by Business</h2>
+  <div class="card"><canvas id="profitChart"></canvas></div>
+
+  <h2>Weekly Overview (last 7 days)</h2>
+  <div class="card"><canvas id="weeklyChart"></canvas></div>
+
+  <h2>Monthly Projection</h2>
+  <div class="grid" id="projectionStats"></div>
+
+  <h2>Key Insights</h2>
+  <div class="card" id="insights"></div>
+</div>
+
+<!-- ================= MINING ================= -->
+<div id="mining" class="panel">
+  <div class="card">
+    <h2>Add Mining Transaction</h2>
+    <div class="row">
+      <div><label>Date</label><input type="date" id="mDate" /></div>
+      <div><label>Mineral Type</label>
+        <select id="mType">
+          <option>Tin</option><option>Columbite</option><option>Zircon</option>
+          <option>Monazite</option><option>Lead</option><option>Other</option>
+        </select>
+      </div>
+      <div><label>Quantity (kg)</label><input type="number" id="mQty" step="0.01" placeholder="0" /></div>
+      <div><label>Purchase Cost</label><input type="number" id="mCost" step="0.01" placeholder="0" /></div>
+      <div><label>Other Expenses</label><input type="number" id="mOther" step="0.01" placeholder="0" /></div>
+      <div><label>Selling Amount (blank if unsold)</label><input type="number" id="mSell" step="0.01" placeholder="—" /></div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" onclick="addMining()">Add Transaction</button>
+    </div>
+  </div>
+
+  <h2>Mining Records</h2>
+  <div class="card scroll">
+    <table id="miningTable">
+      <thead><tr>
+        <th>Date</th><th>Mineral</th><th class="amt">Qty (kg)</th>
+        <th class="amt">Purchase</th><th class="amt">Other</th>
+        <th class="amt">Sold</th><th class="amt">Profit</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ================= BOLT ================= -->
+<div id="bolt" class="panel">
+  <div class="card">
+    <h2>Add Bolt Day</h2>
+    <div class="row">
+      <div><label>Date</label><input type="date" id="bDate" /></div>
+      <div><label>Fuel Cost</label><input type="number" id="bFuel" step="0.01" placeholder="0" /></div>
+      <div><label>Other Expenses</label><input type="number" id="bOther" step="0.01" placeholder="0" /></div>
+    </div>
+    <label style="margin-top:8px">Trip Incomes (comma separated)</label>
+    <input type="text" id="bTrips" placeholder="e.g. 2500, 3000, 1800, 2200" />
+    <div class="actions">
+      <button class="btn-primary" onclick="addBolt()">Add Day</button>
+    </div>
+  </div>
+
+  <h2>Bolt Records</h2>
+  <div class="card scroll">
+    <table id="boltTable">
+      <thead><tr>
+        <th>Date</th><th class="amt">Trips</th><th class="amt">Income</th>
+        <th class="amt">Fuel</th><th class="amt">Other</th>
+        <th class="amt">Profit</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ================= BETTING ================= -->
+<div id="betting" class="panel">
+  <div class="card">
+    <h2>Add Betting Ticket</h2>
+    <div class="row">
+      <div><label>Date</label><input type="date" id="tDate" /></div>
+      <div><label>Amount Staked</label><input type="number" id="tStake" step="0.01" placeholder="0" /></div>
+      <div><label>Odds</label><input type="number" id="tOdds" step="0.01" placeholder="2.0" /></div>
+      <div><label>Status</label>
+        <select id="tStatus"><option>Won</option><option>Lost</option><option>Pending</option></select>
+      </div>
+      <div><label>Payout (optional)</label><input type="number" id="tPayout" step="0.01" placeholder="auto" /></div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" onclick="addBet()">Add Ticket</button>
+    </div>
+  </div>
+
+  <h2>Betting Records</h2>
+  <div class="card scroll">
+    <table id="betTable">
+      <thead><tr>
+        <th>Date</th><th class="amt">Stake</th><th class="amt">Odds</th>
+        <th>Status</th><th class="amt">Payout</th>
+        <th class="amt">P/L</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ================= EXPENSES ================= -->
+<div id="expenses" class="panel">
+  <div class="card">
+    <h2>Add Personal Expense</h2>
+    <div class="row">
+      <div><label>Date</label><input type="date" id="eDate" /></div>
+      <div><label>Description</label><input type="text" id="eDesc" placeholder="What did you buy?" /></div>
+      <div><label>Amount</label><input type="number" id="eAmount" step="0.01" placeholder="0" /></div>
+      <div><label>Category</label>
+        <select id="eCat">
+          <option>Food</option><option>Transportation</option><option>Phone/Data</option>
+          <option>Household</option><option>Utilities</option><option>Health</option>
+          <option>Rent</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" onclick="addExpense()">Add Expense</button>
+    </div>
+  </div>
+
+  <h2>Expense Records</h2>
+  <div class="card scroll">
+    <table id="expTable">
+      <thead><tr>
+        <th>Date</th><th>Description</th><th>Category</th>
+        <th class="amt">Amount</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ================= DATA ================= -->
+<div id="data" class="panel">
+  <div class="card">
+    <h2>Backup & Restore</h2>
+    <p class="muted">Your data is stored in this browser only. Export regularly to keep it safe.</p>
+    <div class="actions">
+      <button class="btn-primary" onclick="exportData()">⬇️ Export JSON Backup</button>
+      <button class="btn-ghost" onclick="document.getElementById('importFile').click()">⬆️ Import Backup</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)" />
+      <button class="btn-danger" onclick="clearAll()">🗑️ Delete All Data</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Quick Stats</h2>
+    <div id="dataStats" class="grid"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   DATA LAYER — stored in localStorage
+============================================================ */
+const KEY = 'biz_finance_v1';
+let db = { mining: [], bolt: [], betting: [], expenses: [] };
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) db = JSON.parse(raw);
+  } catch(e) { console.warn(e); }
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(db)); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function fmt(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtShort(n) {
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toFixed(0);
+}
+function today() { return new Date().toISOString().slice(0,10); }
+
+/* ============================================================
+   TAB NAVIGATION
+============================================================ */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'dashboard') renderDashboard();
+    if (tab.dataset.tab === 'data') renderDataStats();
+  });
+});
+
+/* ============================================================
+   MINING
+============================================================ */
+function addMining() {
+  const date = document.getElementById('mDate').value || today();
+  const type = document.getElementById('mType').value;
+  const qty = parseFloat(document.getElementById('mQty').value) || 0;
+  const cost = parseFloat(document.getElementById('mCost').value) || 0;
+  const other = parseFloat(document.getElementById('mOther').value) || 0;
+  const sellRaw = document.getElementById('mSell').value;
+  const sell = sellRaw === '' ? null : parseFloat(sellRaw);
+
+  if (!qty || !cost) return toast('Enter quantity and purchase cost');
+
+  const profit = sell !== null ? sell - cost - other : null;
+  db.mining.push({ id: uid(), date, type, qty, cost, other, sell, profit });
+  save(); renderMining(); clearMiningForm();
+  toast('Mining transaction added');
+}
+function clearMiningForm() {
+  ['mQty','mCost','mOther','mSell'].forEach(id => document.getElementById(id).value = '');
+}
+function deleteMining(id) {
+  if (!confirm('Delete this transaction?')) return;
+  db.mining = db.mining.filter(x => x.id !== id); save(); renderMining();
+}
+function renderMining() {
+  const tb = document.querySelector('#miningTable tbody');
+  tb.innerHTML = '';
+  const rows = [...db.mining].sort((a,b) => b.date.localeCompare(a.date));
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">No records yet</td></tr>'; return; }
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.date}</td><td>${r.type}</td>
+      <td class="amt">${r.qty}</td>
+      <td class="amt">${fmt(r.cost)}</td>
+      <td class="amt">${fmt(r.other)}</td>
+      <td class="amt">${r.sell !== null ? fmt(r.sell) : '—'}</td>
+      <td class="amt ${r.profit > 0 ? 'pos' : r.profit < 0 ? 'neg' : ''}">${r.profit !== null ? fmt(r.profit) : '—'}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteMining('${r.id}')">✕</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   BOLT
+============================================================ */
+function addBolt() {
+  const date = document.getElementById('bDate').value || today();
+  const fuel = parseFloat(document.getElementById('bFuel').value) || 0;
+  const other = parseFloat(document.getElementById('bOther').value) || 0;
+  const tripsRaw = document.getElementById('bTrips').value.trim();
+  if (!tripsRaw) return toast('Enter trip incomes');
+  const trips = tripsRaw.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
+  if (!trips.length) return toast('Invalid trips');
+
+  const income = trips.reduce((a,b) => a+b, 0);
+  const profit = income - fuel - other;
+  db.bolt.push({ id: uid(), date, fuel, other, trips, income, profit });
+  save(); renderBolt(); clearBoltForm();
+  toast('Bolt day added');
+}
+function clearBoltForm() {
+  ['bFuel','bOther','bTrips'].forEach(id => document.getElementById(id).value = '');
+}
+function deleteBolt(id) {
+  if (!confirm('Delete this day?')) return;
+  db.bolt = db.bolt.filter(x => x.id !== id); save(); renderBolt();
+}
+function renderBolt() {
+  const tb = document.querySelector('#boltTable tbody');
+  tb.innerHTML = '';
+  const rows = [...db.bolt].sort((a,b) => b.date.localeCompare(a.date));
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">No records yet</td></tr>'; return; }
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.date}</td>
+      <td class="amt">${r.trips.length}</td>
+      <td class="amt">${fmt(r.income)}</td>
+      <td class="amt">${fmt(r.fuel)}</td>
+      <td class="amt">${fmt(r.other)}</td>
+      <td class="amt ${r.profit >= 0 ? 'pos' : 'neg'}">${fmt(r.profit)}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteBolt('${r.id}')">✕</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   BETTING
+============================================================ */
+function addBet() {
+  const date = document.getElementById('tDate').value || today();
+  const stake = parseFloat(document.getElementById('tStake').value) || 0;
+  const odds = parseFloat(document.getElementById('tOdds').value) || 0;
+  const status = document.getElementById('tStatus').value;
+  let payout = parseFloat(document.getElementById('tPayout').value);
+  if (isNaN(payout)) {
+    payout = status === 'Won' ? stake * odds : status === 'Pending' ? 0 : 0;
+  }
+  if (!stake) return toast('Enter stake amount');
+
+  const pl = status === 'Pending' ? 0 : payout - stake;
+  db.betting.push({ id: uid(), date, stake, odds, status, payout, pl });
+  save(); renderBetting(); clearBetForm();
+  toast('Ticket added');
+}
+function clearBetForm() {
+  ['tStake','tOdds','tPayout'].forEach(id => document.getElementById(id).value = '');
+}
+function deleteBet(id) {
+  if (!confirm('Delete this ticket?')) return;
+  db.betting = db.betting.filter(x => x.id !== id); save(); renderBetting();
+}
+function renderBetting() {
+  const tb = document.querySelector('#betTable tbody');
+  tb.innerHTML = '';
+  const rows = [...db.betting].sort((a,b) => b.date.localeCompare(a.date));
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">No records yet</td></tr>'; return; }
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    const cls = r.status === 'Won' ? 'won' : r.status === 'Lost' ? 'lost' : 'pending';
+    tr.innerHTML = `
+      <td>${r.date}</td>
+      <td class="amt">${fmt(r.stake)}</td>
+      <td class="amt">${r.odds}</td>
+      <td><span class="badge ${cls}">${r.status}</span></td>
+      <td class="amt">${fmt(r.payout)}</td>
+      <td class="amt ${r.pl > 0 ? 'pos' : r.pl < 0 ? 'neg' : ''}">${fmt(r.pl)}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteBet('${r.id}')">✕</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   EXPENSES
+============================================================ */
+function addExpense() {
+  const date = document.getElementById('eDate').value || today();
+  const desc = document.getElementById('eDesc').value.trim();
+  const amount = parseFloat(document.getElementById('eAmount').value) || 0;
+  const cat = document.getElementById('eCat').value;
+  if (!desc || !amount) return toast('Enter description and amount');
+
+  db.expenses.push({ id: uid(), date, desc, amount, cat });
+  save(); renderExpenses(); clearExpForm();
+  toast('Expense added');
+}
+function clearExpForm() {
+  ['eDesc','eAmount'].forEach(id => document.getElementById(id).value = '');
+}
+function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  db.expenses = db.expenses.filter(x => x.id !== id); save(); renderExpenses();
+}
+function renderExpenses() {
+  const tb = document.querySelector('#expTable tbody');
+  tb.innerHTML = '';
+  const rows = [...db.expenses].sort((a,b) => b.date.localeCompare(a.date));
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">No records yet</td></tr>'; return; }
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.date}</td><td>${r.desc}</td><td>${r.cat}</td>
+      <td class="amt neg">${fmt(r.amount)}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteExpense('${r.id}')">✕</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   DATE HELPERS
+============================================================ */
+function inRange(date, start, end) { return date >= start && date <= end; }
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
+}
+function weekRange(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0=Sun
+  const monday = new Date(d); monday.setDate(d.getDate() - ((day+6)%7));
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  return [monday.toISOString().slice(0,10), sunday.toISOString().slice(0,10)];
+}
+function monthRange(dateStr) {
+  const [y,m] = dateStr.split('-');
+  const start = `${y}-${m}-01`;
+  const end = new Date(+y, +m, 0).toISOString().slice(0,10);
+  return [start, end];
+}
+
+/* ============================================================
+   AGGREGATION
+============================================================ */
+function aggregate(start, end) {
+  const mining = db.mining.filter(r => inRange(r.date, start, end));
+  const bolt = db.bolt.filter(r => inRange(r.date, start, end));
+  const betting = db.betting.filter(r => inRange(r.date, start, end));
+  const expenses = db.expenses.filter(r => inRange(r.date, start, end));
+
+  const miningInvestment = mining.reduce((s,r) => s + r.cost + r.other, 0);
+  const miningProfit = mining.reduce((s,r) => s + (r.profit || 0), 0);
+  const miningSold = mining.filter(r => r.sell !== null).length;
+
+  const boltIncome = bolt.reduce((s,r) => s + r.income, 0);
+  const boltExpenses = bolt.reduce((s,r) => s + r.fuel + r.other, 0);
+  const boltProfit = bolt.reduce((s,r) => s + r.profit, 0);
+
+  const betStake = betting.reduce((s,r) => s + r.stake, 0);
+  const betPayout = betting.reduce((s,r) => s + r.payout, 0);
+  const betPL = betting.reduce((s,r) => s + r.pl, 0);
+
+  const personal = expenses.reduce((s,r) => s + r.amount, 0);
+
+  const totalIncome = boltIncome + betPayout + miningProfit;
+  const totalExpenses = boltExpenses + personal + betStake;
+  const net = totalIncome - totalExpenses;
+
+  return {
+    mining: { count: mining.length, investment: miningInvestment, profit: miningProfit, sold: miningSold },
+    bolt: { count: bolt.length, income: boltIncome, expenses: boltExpenses, profit: boltProfit },
+    betting: { count: betting.length, stake: betStake, payout: betPayout, pl: betPL },
+    expenses: { count: expenses.length, total: personal },
+    totalIncome, totalExpenses, net
+  };
+}
+
+/* ============================================================
+   DASHBOARD
+============================================================ */
+let profitChart, weeklyChart;
+
+function renderDashboard() {
+  const date = document.getElementById('dashDate').value || today();
+  const period = document.getElementById('dashPeriod').value;
+  let start, end, label;
+
+  if (period === 'daily') { start = end = date; label = `Daily Summary — ${date}`; }
+  else if (period === 'weekly') { [start, end] = weekRange(date); label = `Weekly Summary — ${start} to ${end}`; }
+  else { [start, end] = monthRange(date); label = `Monthly Summary — ${date.slice(0,7)}`; }
+
+  const a = aggregate(start, end);
+  document.getElementById('dashTitle').textContent = label;
+
+  const stats = [
+    { label: 'Total Income', value: a.totalIncome, cls: 'pos' },
+    { label: 'Total Expenses', value: a.totalExpenses, cls: 'neg' },
+    { label: 'Net Position', value: a.net, cls: a.net >= 0 ? 'pos' : 'neg' },
+    { label: 'Mining Profit', value: a.mining.profit, cls: a.mining.profit >= 0 ? 'pos' : 'neg' },
+    { label: 'Bolt Profit', value: a.bolt.profit, cls: a.bolt.profit >= 0 ? 'pos' : 'neg' },
+    { label: 'Betting P/L', value: a.betting.pl, cls: a.betting.pl >= 0 ? 'pos' : 'neg' },
+    { label: 'Personal Expenses', value: a.expenses.total, cls: 'neg' },
+    { label: 'Total Investment', value: a.mining.investment + a.betting.stake, cls: '' }
+  ];
+  document.getElementById('dashStats').innerHTML = stats.map(s => `
+    <div class="stat">
+      <div class="label">${s.label}</div>
+      <div class="value ${s.cls}">₦${fmt(s.value)}</div>
+    </div>`).join('');
+
+  // Profit chart
+  const ctx1 = document.getElementById('profitChart').getContext('2d');
+  if (profitChart) profitChart.destroy();
+  profitChart = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: ['Mining', 'Bolt', 'Betting'],
+      datasets: [{
+        label: 'Profit (₦)',
+        data: [a.mining.profit, a.bolt.profit, a.betting.pl],
+        backgroundColor: ['#22d3ee', '#22c55e', '#eab308']
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+      }
+    }
+  });
+
+  // Weekly chart: last 7 days net
+  const days = [];
+  for (let i = 6; i >= 0; i--) days.push(addDays(today(), -i));
+  const nets = days.map(d => aggregate(d, d).net);
+  const ctx2 = document.getElementById('weeklyChart').getContext('2d');
+  if (weeklyChart) weeklyChart.destroy();
+  weeklyChart = new Chart(ctx2, {
+    type: 'line',
+    data: {
+      labels: days.map(d => d.slice(5)),
+      datasets: [{
+        label: 'Net (₦)',
+        data: nets,
+        borderColor: '#22d3ee',
+        backgroundColor: 'rgba(34,211,238,0.15)',
+        fill: true, tension: 0.3, pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+      }
+    }
+  });
+
+  // Monthly projection (from current month data)
+  const [ms, me] = monthRange(today());
+  const ma = aggregate(ms, me);
+  const daysWithData = new Set([
+    ...db.mining.filter(r => inRange(r.date, ms, me)).map(r => r.date),
+    ...db.bolt.filter(r => inRange(r.date, ms, me)).map(r => r.date),
+    ...db.betting.filter(r => inRange(r.date, ms, me)).map(r => r.date),
+    ...db.expenses.filter(r => inRange(r.date, ms, me)).map(r => r.date)
+  ]).size || 1;
+
+  const projIncome = (ma.totalIncome / daysWithData) * 30;
+  const projExpenses = (ma.totalExpenses / daysWithData) * 30;
+  const projNet = projIncome - projExpenses;
+
+  document.getElementById('projectionStats').innerHTML = `
+    <div class="stat"><div class="label">Est. Monthly Income</div><div class="value">₦${fmt(projIncome)}</div></div>
+    <div class="stat"><div class="label">Est. Monthly Expenses</div><div class="value neg">₦${fmt(projExpenses)}</div></div>
+    <div class="stat"><div class="label">Est. Monthly Profit</div><div class="value ${projNet >= 0 ? 'pos' : 'neg'}">₦${fmt(projNet)}</div></div>
+    <div class="stat"><div class="label">Days Recorded</div><div class="value">${daysWithData}</div></div>
+  `;
+
+  // Insights
+  const insights = [];
+  const biz = [
+    { name: 'Mining', profit: a.mining.profit },
+    { name: 'Bolt', profit: a.bolt.profit },
+    { name: 'Betting', profit: a.betting.pl }
+  ].sort((x,y) => y.profit - x.profit);
+
+  if (biz[0].profit > 0) insights.push(`✅ Highest profit: <strong>${biz[0].name}</strong> (₦${fmt(biz[0].profit)})`);
+  if (biz[2].profit < 0) insights.push(`⚠️ Losing money on: <strong>${biz[2].name}</strong> (₦${fmt(biz[2].profit)})`);
+  const reinvest = a.net * 0.5;
+  if (reinvest > 0) insights.push(`💡 Safe to reinvest (50% rule): <strong>₦${fmt(reinvest)}</strong>`);
+  if (a.expenses.total > a.totalIncome * 0.5) insights.push(`⚠️ Personal expenses are over 50% of income`);
+  if (a.mining.count === 0 && period === 'monthly') insights.push(`ℹ️ No mining transactions this period`);
+  if (!insights.length) insights.push('Add transactions to see insights.');
+
+  document.getElementById('insights').innerHTML = insights.map(i => `<p style="margin:6px 0">${i}</p>`).join('');
+}
+
+/* ============================================================
+   DATA PANEL
+============================================================ */
+function renderDataStats() {
+  const el = document.getElementById('dataStats');
+  el.innerHTML = `
+    <div class="stat"><div class="label">Mining Records</div><div class="value">${db.mining.length}</div></div>
+    <div class="stat"><div class="label">Bolt Days</div><div class="value">${db.bolt.length}</div></div>
+    <div class="stat"><div class="label">Bet Tickets</div><div class="value">${db.betting.length}</div></div>
+    <div class="stat"><div class="label">Personal Expenses</div><div class="value">${db.expenses.length}</div></div>
+  `;
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `finance-backup-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Backup downloaded');
+}
+
+function importData(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.mining || !data.bolt || !data.betting || !data.expenses) throw new Error('Invalid backup');
+      if (!confirm('This will overwrite current data. Continue?')) return;
+      db = data; save(); renderAll();
+      toast('Backup restored');
+    } catch(err) { alert('Invalid backup file'); }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+
+function clearAll() {
+  if (!confirm('Delete ALL data permanently? This cannot be undone.')) return;
+  if (!confirm('Are you absolutely sure?')) return;
+  db = { mining: [], bolt: [], betting: [], expenses: [] };
+  save(); renderAll(); toast('All data cleared');
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+function renderAll() {
+  renderMining(); renderBolt(); renderBetting(); renderExpenses();
+  renderDashboard(); renderDataStats();
+}
+
+function init() {
+  load();
+  const t = today();
+  ['dashDate','mDate','bDate','tDate','eDate'].forEach(id => {
+    document.getElementById(id).value = t;
+  });
+  document.getElementById('dashDate').addEventListener('change', renderDashboard);
+  document.getElementById('dashPeriod').addEventListener('change', renderDashboard);
+  renderAll();
+}
+
+init();
+</script>
+</body>
+</html>
