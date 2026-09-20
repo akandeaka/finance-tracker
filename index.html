@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Business Finance Tracker</title>
- <meta name="theme-color" content="#0f172a"/>
+<meta name="theme-color" content="#0f172a"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FinTracker"/>
+<title>Business Finance Tracker</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -16,7 +16,7 @@
   :root {
     --bg: #0f172a; --card: #1e293b; --card2: #334155;
     --text: #e2e8f0; --muted: #94a3b8; --accent: #22d3ee;
-    --green: #22c55e; --red: #ef4444; --yellow: #eab308;
+    --green: #22c55e; --red: #ef4444; --yellow: #eab308; --purple: #a855f7;
     --border: #334155;
   }
   body {
@@ -28,7 +28,6 @@
   h2 { font-size: 1.1rem; margin: 16px 0 8px; color: var(--accent); }
   h3 { font-size: 0.95rem; margin-bottom: 6px; color: var(--muted); }
   .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 12px; }
-
   .tabs { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 4px; }
   .tab {
     padding: 8px 14px; background: var(--card); border: 1px solid var(--border);
@@ -36,23 +35,19 @@
     color: var(--text);
   }
   .tab.active { background: var(--accent); color: #0f172a; font-weight: 600; border-color: var(--accent); }
-
   .panel { display: none; }
   .panel.active { display: block; }
-
   .card {
     background: var(--card); border: 1px solid var(--border); border-radius: 10px;
     padding: 14px; margin-bottom: 12px;
   }
   .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-
   label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
   input, select, textarea {
     width: 100%; padding: 9px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text); font-size: 0.9rem; font-family: inherit;
   }
   input:focus, select:focus { outline: 2px solid var(--accent); }
-
   button {
     padding: 10px 16px; border-radius: 6px; border: none; cursor: pointer;
     font-size: 0.9rem; font-weight: 600; font-family: inherit;
@@ -62,7 +57,6 @@
   .btn-danger { background: var(--red); color: white; }
   .btn-small { padding: 4px 8px; font-size: 0.75rem; }
   .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
-
   table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px; }
   th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--border); }
   th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
@@ -70,22 +64,18 @@
   .pos { color: var(--green); }
   .neg { color: var(--red); }
   .scroll { overflow-x: auto; }
-
   .stat {
     background: var(--card2); border-radius: 8px; padding: 10px 12px;
   }
   .stat .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
   .stat .value { font-size: 1.15rem; font-weight: 700; margin-top: 2px; }
-
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
   .row > div { flex: 1; min-width: 120px; }
   .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-
   .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
   .badge.won { background: rgba(34,197,94,0.2); color: var(--green); }
   .badge.lost { background: rgba(239,68,68,0.2); color: var(--red); }
   .badge.pending { background: rgba(234,179,8,0.2); color: var(--yellow); }
-
   .toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: var(--accent); color: #0f172a; padding: 10px 20px;
@@ -93,7 +83,6 @@
     pointer-events: none; z-index: 100;
   }
   .toast.show { opacity: 1; }
-
   canvas { max-height: 280px; }
   .muted { color: var(--muted); font-size: 0.8rem; }
   .empty { text-align: center; color: var(--muted); padding: 20px; font-size: 0.85rem; }
@@ -102,14 +91,15 @@
 <body>
 
 <h1>💰 Business Finance Tracker</h1>
-<p class="subtitle">Mining • Bolt • Betting • Personal Expenses</p>
+<p class="subtitle">Mining • Bolt • Sports Investment • Personal</p>
 
 <div class="tabs">
   <div class="tab active" data-tab="dashboard">📊 Dashboard</div>
   <div class="tab" data-tab="mining">⛏️ Mining</div>
   <div class="tab" data-tab="bolt">🚗 Bolt</div>
-  <div class="tab" data-tab="betting">🎯 Betting</div>
-  <div class="tab" data-tab="expenses">🧾 Personal</div>
+  <div class="tab" data-tab="betting">🎯 Sports Investment</div>
+  <div class="tab" data-tab="income">💰 Personal Income</div>
+  <div class="tab" data-tab="expenses">🧾 Personal Expenses</div>
   <div class="tab" data-tab="data">⚙️ Data</div>
 </div>
 
@@ -117,10 +107,7 @@
 <div id="dashboard" class="panel active">
   <div class="card">
     <div class="row">
-      <div>
-        <label>View Date</label>
-        <input type="date" id="dashDate" />
-      </div>
+      <div><label>View Date</label><input type="date" id="dashDate" /></div>
       <div>
         <label>Period</label>
         <select id="dashPeriod">
@@ -133,8 +120,10 @@
   </div>
 
   <h2 id="dashTitle">Today's Summary</h2>
-
   <div class="grid" id="dashStats"></div>
+
+  <h2>Personal Cash Flow</h2>
+  <div class="grid" id="personalStats"></div>
 
   <h2>Profit by Business</h2>
   <div class="card"><canvas id="profitChart"></canvas></div>
@@ -170,7 +159,6 @@
       <button class="btn-primary" onclick="addMining()">Add Transaction</button>
     </div>
   </div>
-
   <h2>Mining Records</h2>
   <div class="card scroll">
     <table id="miningTable">
@@ -191,6 +179,7 @@
     <div class="row">
       <div><label>Date</label><input type="date" id="bDate" /></div>
       <div><label>Fuel Cost</label><input type="number" id="bFuel" step="0.01" placeholder="0" /></div>
+      <div><label>Bolt Commission</label><input type="number" id="bCommission" step="0.01" placeholder="0" /></div>
       <div><label>Other Expenses</label><input type="number" id="bOther" step="0.01" placeholder="0" /></div>
     </div>
     <label style="margin-top:8px">Trip Incomes (comma separated)</label>
@@ -199,24 +188,23 @@
       <button class="btn-primary" onclick="addBolt()">Add Day</button>
     </div>
   </div>
-
   <h2>Bolt Records</h2>
   <div class="card scroll">
     <table id="boltTable">
       <thead><tr>
         <th>Date</th><th class="amt">Trips</th><th class="amt">Income</th>
-        <th class="amt">Fuel</th><th class="amt">Other</th>
-        <th class="amt">Profit</th><th></th>
+        <th class="amt">Fuel</th><th class="amt">Commission</th>
+        <th class="amt">Other</th><th class="amt">Profit</th><th></th>
       </tr></thead>
       <tbody></tbody>
     </table>
   </div>
 </div>
 
-<!-- ================= BETTING ================= -->
+<!-- ================= SPORTS INVESTMENT ================= -->
 <div id="betting" class="panel">
   <div class="card">
-    <h2>Add Betting Ticket</h2>
+    <h2>Add Sports Investment Ticket</h2>
     <div class="row">
       <div><label>Date</label><input type="date" id="tDate" /></div>
       <div><label>Amount Staked</label><input type="number" id="tStake" step="0.01" placeholder="0" /></div>
@@ -230,8 +218,7 @@
       <button class="btn-primary" onclick="addBet()">Add Ticket</button>
     </div>
   </div>
-
-  <h2>Betting Records</h2>
+  <h2>Sports Investment Records</h2>
   <div class="card scroll">
     <table id="betTable">
       <thead><tr>
@@ -244,7 +231,45 @@
   </div>
 </div>
 
-<!-- ================= EXPENSES ================= -->
+<!-- ================= PERSONAL INCOME ================= -->
+<div id="income" class="panel">
+  <div class="card">
+    <h2>Add Personal Income</h2>
+    <p class="muted" style="margin-bottom:10px">Money received personally — not from your businesses.</p>
+    <div class="row">
+      <div><label>Date</label><input type="date" id="iDate" /></div>
+      <div><label>Amount (₦)</label><input type="number" id="iAmount" step="0.01" placeholder="0" /></div>
+      <div><label>Category</label>
+        <select id="iCategory">
+          <option>🎁 Gift</option>
+          <option>💵 Refund</option>
+          <option>🏦 Loan Received</option>
+          <option>👨‍👩‍👧 Family Support</option>
+          <option>💼 Salary / Personal Work</option>
+          <option>🏪 Sale of Personal Item</option>
+          <option>💰 Other</option>
+        </select>
+      </div>
+      <div><label>Source</label><input type="text" id="iSource" placeholder="e.g. Mum, Friend, Refund" /></div>
+      <div><label>Notes (optional)</label><input type="text" id="iNotes" placeholder="" /></div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" onclick="addIncome()">Add Income</button>
+    </div>
+  </div>
+  <h2>Income Records</h2>
+  <div class="card scroll">
+    <table id="incomeTable">
+      <thead><tr>
+        <th>Date</th><th>Category</th><th>Source</th>
+        <th class="amt">Amount</th><th>Notes</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ================= PERSONAL EXPENSES ================= -->
 <div id="expenses" class="panel">
   <div class="card">
     <h2>Add Personal Expense</h2>
@@ -264,7 +289,6 @@
       <button class="btn-primary" onclick="addExpense()">Add Expense</button>
     </div>
   </div>
-
   <h2>Expense Records</h2>
   <div class="card scroll">
     <table id="expTable">
@@ -289,7 +313,6 @@
       <button class="btn-danger" onclick="clearAll()">🗑️ Delete All Data</button>
     </div>
   </div>
-
   <div class="card">
     <h2>Quick Stats</h2>
     <div id="dataStats" class="grid"></div>
@@ -297,42 +320,47 @@
 </div>
 
 <div class="toast" id="toast"></div>
-
 <script>
 /* ============================================================
-   DATA LAYER — stored in localStorage
+   DATA LAYER
 ============================================================ */
 const KEY = 'biz_finance_v1';
-let db = { mining: [], bolt: [], betting: [], expenses: [] };
+let db = { mining: [], bolt: [], betting: [], expenses: [], income: [] };
 
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) db = JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      db = {
+        mining: parsed.mining || [],
+        bolt: parsed.bolt || [],
+        betting: parsed.betting || [],
+        expenses: parsed.expenses || [],
+        income: parsed.income || []
+      };
+    }
   } catch(e) { console.warn(e); }
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(db)); }
-
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function today() { return new Date().toISOString().slice(0,10); }
+function fmt(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtInt(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-NG', { maximumFractionDigits: 0 });
+}
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 1800);
 }
 
-function uid() { return Math.random().toString(36).slice(2, 10); }
-function fmt(n) {
-  if (n === null || n === undefined || isNaN(n)) return '—';
-  return Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function fmtShort(n) {
-  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2) + 'M';
-  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(1) + 'K';
-  return n.toFixed(0);
-}
-function today() { return new Date().toISOString().slice(0,10); }
-
 /* ============================================================
-   TAB NAVIGATION
+   TABS
 ============================================================ */
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -392,11 +420,12 @@ function renderMining() {
 }
 
 /* ============================================================
-   BOLT
+   BOLT (with Commission)
 ============================================================ */
 function addBolt() {
   const date = document.getElementById('bDate').value || today();
   const fuel = parseFloat(document.getElementById('bFuel').value) || 0;
+  const commission = parseFloat(document.getElementById('bCommission').value) || 0;
   const other = parseFloat(document.getElementById('bOther').value) || 0;
   const tripsRaw = document.getElementById('bTrips').value.trim();
   if (!tripsRaw) return toast('Enter trip incomes');
@@ -404,13 +433,13 @@ function addBolt() {
   if (!trips.length) return toast('Invalid trips');
 
   const income = trips.reduce((a,b) => a+b, 0);
-  const profit = income - fuel - other;
-  db.bolt.push({ id: uid(), date, fuel, other, trips, income, profit });
+  const profit = income - fuel - commission - other;
+  db.bolt.push({ id: uid(), date, fuel, commission, other, trips, income, profit });
   save(); renderBolt(); clearBoltForm();
   toast('Bolt day added');
 }
 function clearBoltForm() {
-  ['bFuel','bOther','bTrips'].forEach(id => document.getElementById(id).value = '');
+  ['bFuel','bCommission','bOther','bTrips'].forEach(id => document.getElementById(id).value = '');
 }
 function deleteBolt(id) {
   if (!confirm('Delete this day?')) return;
@@ -420,14 +449,16 @@ function renderBolt() {
   const tb = document.querySelector('#boltTable tbody');
   tb.innerHTML = '';
   const rows = [...db.bolt].sort((a,b) => b.date.localeCompare(a.date));
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">No records yet</td></tr>'; return; }
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">No records yet</td></tr>'; return; }
   rows.forEach(r => {
+    const commission = r.commission || 0;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${r.date}</td>
       <td class="amt">${r.trips.length}</td>
       <td class="amt">${fmt(r.income)}</td>
       <td class="amt">${fmt(r.fuel)}</td>
+      <td class="amt">${fmt(commission)}</td>
       <td class="amt">${fmt(r.other)}</td>
       <td class="amt ${r.profit >= 0 ? 'pos' : 'neg'}">${fmt(r.profit)}</td>
       <td><button class="btn-danger btn-small" onclick="deleteBolt('${r.id}')">✕</button></td>
@@ -437,7 +468,7 @@ function renderBolt() {
 }
 
 /* ============================================================
-   BETTING
+   SPORTS INVESTMENT
 ============================================================ */
 function addBet() {
   const date = document.getElementById('tDate').value || today();
@@ -446,7 +477,7 @@ function addBet() {
   const status = document.getElementById('tStatus').value;
   let payout = parseFloat(document.getElementById('tPayout').value);
   if (isNaN(payout)) {
-    payout = status === 'Won' ? stake * odds : status === 'Pending' ? 0 : 0;
+    payout = status === 'Won' ? stake * odds : 0;
   }
   if (!stake) return toast('Enter stake amount');
 
@@ -484,7 +515,49 @@ function renderBetting() {
 }
 
 /* ============================================================
-   EXPENSES
+   PERSONAL INCOME
+============================================================ */
+function addIncome() {
+  const date = document.getElementById('iDate').value || today();
+  const amount = parseFloat(document.getElementById('iAmount').value) || 0;
+  const category = document.getElementById('iCategory').value;
+  const source = document.getElementById('iSource').value.trim();
+  const notes = document.getElementById('iNotes').value.trim();
+
+  if (!amount) return toast('Enter amount');
+
+  db.income.push({ id: uid(), date, amount, category, source, notes });
+  save(); renderIncome(); clearIncomeForm();
+  toast('Income added');
+}
+function clearIncomeForm() {
+  ['iAmount','iSource','iNotes'].forEach(id => document.getElementById(id).value = '');
+}
+function deleteIncome(id) {
+  if (!confirm('Delete this income record?')) return;
+  db.income = db.income.filter(x => x.id !== id); save(); renderIncome();
+}
+function renderIncome() {
+  const tb = document.querySelector('#incomeTable tbody');
+  tb.innerHTML = '';
+  const rows = [...db.income].sort((a,b) => b.date.localeCompare(a.date));
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">No income yet</td></tr>'; return; }
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.date}</td>
+      <td>${r.category}</td>
+      <td>${r.source || '—'}</td>
+      <td class="amt pos">${fmt(r.amount)}</td>
+      <td>${r.notes || ''}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteIncome('${r.id}')">✕</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   PERSONAL EXPENSES
 ============================================================ */
 function addExpense() {
   const date = document.getElementById('eDate').value || today();
@@ -531,7 +604,7 @@ function addDays(dateStr, days) {
 }
 function weekRange(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
-  const day = d.getDay(); // 0=Sun
+  const day = d.getDay();
   const monday = new Date(d); monday.setDate(d.getDate() - ((day+6)%7));
   const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
   return [monday.toISOString().slice(0,10), sunday.toISOString().slice(0,10)];
@@ -551,30 +624,34 @@ function aggregate(start, end) {
   const bolt = db.bolt.filter(r => inRange(r.date, start, end));
   const betting = db.betting.filter(r => inRange(r.date, start, end));
   const expenses = db.expenses.filter(r => inRange(r.date, start, end));
+  const income = db.income.filter(r => inRange(r.date, start, end));
 
   const miningInvestment = mining.reduce((s,r) => s + r.cost + r.other, 0);
   const miningProfit = mining.reduce((s,r) => s + (r.profit || 0), 0);
-  const miningSold = mining.filter(r => r.sell !== null).length;
 
   const boltIncome = bolt.reduce((s,r) => s + r.income, 0);
-  const boltExpenses = bolt.reduce((s,r) => s + r.fuel + r.other, 0);
+  const boltExpenses = bolt.reduce((s,r) => s + r.fuel + (r.commission || 0) + r.other, 0);
   const boltProfit = bolt.reduce((s,r) => s + r.profit, 0);
 
   const betStake = betting.reduce((s,r) => s + r.stake, 0);
   const betPayout = betting.reduce((s,r) => s + r.payout, 0);
   const betPL = betting.reduce((s,r) => s + r.pl, 0);
 
-  const personal = expenses.reduce((s,r) => s + r.amount, 0);
+  const personalExpenses = expenses.reduce((s,r) => s + r.amount, 0);
+  const personalIncome = income.reduce((s,r) => s + r.amount, 0);
 
-  const totalIncome = boltIncome + betPayout + miningProfit;
-  const totalExpenses = boltExpenses + personal + betStake;
+  const totalIncome = boltIncome + betPayout + miningProfit + personalIncome;
+  const totalExpenses = boltExpenses + personalExpenses + betStake;
   const net = totalIncome - totalExpenses;
+  const personalNet = personalIncome - personalExpenses;
 
   return {
-    mining: { count: mining.length, investment: miningInvestment, profit: miningProfit, sold: miningSold },
+    mining: { count: mining.length, investment: miningInvestment, profit: miningProfit },
     bolt: { count: bolt.length, income: boltIncome, expenses: boltExpenses, profit: boltProfit },
     betting: { count: betting.length, stake: betStake, payout: betPayout, pl: betPL },
-    expenses: { count: expenses.length, total: personal },
+    expenses: { count: expenses.length, total: personalExpenses },
+    income: { count: income.length, total: personalIncome },
+    personalNet,
     totalIncome, totalExpenses, net
   };
 }
@@ -596,29 +673,30 @@ function renderDashboard() {
   const a = aggregate(start, end);
   document.getElementById('dashTitle').textContent = label;
 
-  const stats = [
-    { label: 'Total Income', value: a.totalIncome, cls: 'pos' },
-    { label: 'Total Expenses', value: a.totalExpenses, cls: 'neg' },
-    { label: 'Net Position', value: a.net, cls: a.net >= 0 ? 'pos' : 'neg' },
-    { label: 'Mining Profit', value: a.mining.profit, cls: a.mining.profit >= 0 ? 'pos' : 'neg' },
-    { label: 'Bolt Profit', value: a.bolt.profit, cls: a.bolt.profit >= 0 ? 'pos' : 'neg' },
-    { label: 'Betting P/L', value: a.betting.pl, cls: a.betting.pl >= 0 ? 'pos' : 'neg' },
-    { label: 'Personal Expenses', value: a.expenses.total, cls: 'neg' },
-    { label: 'Total Investment', value: a.mining.investment + a.betting.stake, cls: '' }
-  ];
-  document.getElementById('dashStats').innerHTML = stats.map(s => `
-    <div class="stat">
-      <div class="label">${s.label}</div>
-      <div class="value ${s.cls}">₦${fmt(s.value)}</div>
-    </div>`).join('');
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat"><div class="label">Total Income</div><div class="value pos">₦${fmtInt(a.totalIncome)}</div></div>
+    <div class="stat"><div class="label">Total Expenses</div><div class="value neg">₦${fmtInt(a.totalExpenses)}</div></div>
+    <div class="stat"><div class="label">Net Position</div><div class="value ${a.net >= 0 ? 'pos' : 'neg'}">₦${fmtInt(a.net)}</div></div>
+    <div class="stat"><div class="label">Mining Profit</div><div class="value ${a.mining.profit >= 0 ? 'pos' : 'neg'}">₦${fmtInt(a.mining.profit)}</div></div>
+    <div class="stat"><div class="label">Bolt Profit</div><div class="value ${a.bolt.profit >= 0 ? 'pos' : 'neg'}">₦${fmtInt(a.bolt.profit)}</div></div>
+    <div class="stat"><div class="label">Sports Inv. P/L</div><div class="value ${a.betting.pl >= 0 ? 'pos' : 'neg'}">₦${fmtInt(a.betting.pl)}</div></div>
+    <div class="stat"><div class="label">Personal Income</div><div class="value pos">₦${fmtInt(a.income.total)}</div></div>
+    <div class="stat"><div class="label">Personal Expenses</div><div class="value neg">₦${fmtInt(a.expenses.total)}</div></div>
+    <div class="stat"><div class="label">Total Investment</div><div class="value">₦${fmtInt(a.mining.investment + a.betting.stake)}</div></div>
+  `;
 
-  // Profit chart
+  document.getElementById('personalStats').innerHTML = `
+    <div class="stat"><div class="label">Personal Income</div><div class="value pos">₦${fmtInt(a.income.total)}</div></div>
+    <div class="stat"><div class="label">Personal Expenses</div><div class="value neg">₦${fmtInt(a.expenses.total)}</div></div>
+    <div class="stat"><div class="label">Personal Net</div><div class="value ${a.personalNet >= 0 ? 'pos' : 'neg'}">₦${fmtInt(a.personalNet)}</div></div>
+  `;
+
   const ctx1 = document.getElementById('profitChart').getContext('2d');
   if (profitChart) profitChart.destroy();
   profitChart = new Chart(ctx1, {
     type: 'bar',
     data: {
-      labels: ['Mining', 'Bolt', 'Betting'],
+      labels: ['Mining', 'Bolt', 'Sports Inv.'],
       datasets: [{
         label: 'Profit (₦)',
         data: [a.mining.profit, a.bolt.profit, a.betting.pl],
@@ -635,7 +713,6 @@ function renderDashboard() {
     }
   });
 
-  // Weekly chart: last 7 days net
   const days = [];
   for (let i = 6; i >= 0; i--) days.push(addDays(today(), -i));
   const nets = days.map(d => aggregate(d, d).net);
@@ -663,14 +740,14 @@ function renderDashboard() {
     }
   });
 
-  // Monthly projection (from current month data)
   const [ms, me] = monthRange(today());
   const ma = aggregate(ms, me);
   const daysWithData = new Set([
     ...db.mining.filter(r => inRange(r.date, ms, me)).map(r => r.date),
     ...db.bolt.filter(r => inRange(r.date, ms, me)).map(r => r.date),
     ...db.betting.filter(r => inRange(r.date, ms, me)).map(r => r.date),
-    ...db.expenses.filter(r => inRange(r.date, ms, me)).map(r => r.date)
+    ...db.expenses.filter(r => inRange(r.date, ms, me)).map(r => r.date),
+    ...db.income.filter(r => inRange(r.date, ms, me)).map(r => r.date)
   ]).size || 1;
 
   const projIncome = (ma.totalIncome / daysWithData) * 30;
@@ -678,26 +755,25 @@ function renderDashboard() {
   const projNet = projIncome - projExpenses;
 
   document.getElementById('projectionStats').innerHTML = `
-    <div class="stat"><div class="label">Est. Monthly Income</div><div class="value">₦${fmt(projIncome)}</div></div>
-    <div class="stat"><div class="label">Est. Monthly Expenses</div><div class="value neg">₦${fmt(projExpenses)}</div></div>
-    <div class="stat"><div class="label">Est. Monthly Profit</div><div class="value ${projNet >= 0 ? 'pos' : 'neg'}">₦${fmt(projNet)}</div></div>
+    <div class="stat"><div class="label">Est. Monthly Income</div><div class="value">₦${fmtInt(projIncome)}</div></div>
+    <div class="stat"><div class="label">Est. Monthly Expenses</div><div class="value neg">₦${fmtInt(projExpenses)}</div></div>
+    <div class="stat"><div class="label">Est. Monthly Profit</div><div class="value ${projNet >= 0 ? 'pos' : 'neg'}">₦${fmtInt(projNet)}</div></div>
     <div class="stat"><div class="label">Days Recorded</div><div class="value">${daysWithData}</div></div>
   `;
 
-  // Insights
   const insights = [];
   const biz = [
     { name: 'Mining', profit: a.mining.profit },
     { name: 'Bolt', profit: a.bolt.profit },
-    { name: 'Betting', profit: a.betting.pl }
+    { name: 'Sports Investment', profit: a.betting.pl }
   ].sort((x,y) => y.profit - x.profit);
 
-  if (biz[0].profit > 0) insights.push(`✅ Highest profit: <strong>${biz[0].name}</strong> (₦${fmt(biz[0].profit)})`);
-  if (biz[2].profit < 0) insights.push(`⚠️ Losing money on: <strong>${biz[2].name}</strong> (₦${fmt(biz[2].profit)})`);
+  if (biz[0].profit > 0) insights.push(`✅ Highest profit: <strong>${biz[0].name}</strong> (₦${fmtInt(biz[0].profit)})`);
+  if (biz[2].profit < 0) insights.push(`⚠️ Losing money on: <strong>${biz[2].name}</strong> (₦${fmtInt(biz[2].profit)})`);
   const reinvest = a.net * 0.5;
-  if (reinvest > 0) insights.push(`💡 Safe to reinvest (50% rule): <strong>₦${fmt(reinvest)}</strong>`);
+  if (reinvest > 0) insights.push(`💡 Safe to reinvest (50% rule): <strong>₦${fmtInt(reinvest)}</strong>`);
   if (a.expenses.total > a.totalIncome * 0.5) insights.push(`⚠️ Personal expenses are over 50% of income`);
-  if (a.mining.count === 0 && period === 'monthly') insights.push(`ℹ️ No mining transactions this period`);
+  if (a.income.total > 0) insights.push(`🎁 Personal income this period: ₦${fmtInt(a.income.total)}`);
   if (!insights.length) insights.push('Add transactions to see insights.');
 
   document.getElementById('insights').innerHTML = insights.map(i => `<p style="margin:6px 0">${i}</p>`).join('');
@@ -711,7 +787,8 @@ function renderDataStats() {
   el.innerHTML = `
     <div class="stat"><div class="label">Mining Records</div><div class="value">${db.mining.length}</div></div>
     <div class="stat"><div class="label">Bolt Days</div><div class="value">${db.bolt.length}</div></div>
-    <div class="stat"><div class="label">Bet Tickets</div><div class="value">${db.betting.length}</div></div>
+    <div class="stat"><div class="label">Sports Tickets</div><div class="value">${db.betting.length}</div></div>
+    <div class="stat"><div class="label">Personal Income</div><div class="value">${db.income.length}</div></div>
     <div class="stat"><div class="label">Personal Expenses</div><div class="value">${db.expenses.length}</div></div>
   `;
 }
@@ -736,7 +813,14 @@ function importData(evt) {
       const data = JSON.parse(e.target.result);
       if (!data.mining || !data.bolt || !data.betting || !data.expenses) throw new Error('Invalid backup');
       if (!confirm('This will overwrite current data. Continue?')) return;
-      db = data; save(); renderAll();
+      db = {
+        mining: data.mining || [],
+        bolt: data.bolt || [],
+        betting: data.betting || [],
+        expenses: data.expenses || [],
+        income: data.income || []
+      };
+      save(); renderAll();
       toast('Backup restored');
     } catch(err) { alert('Invalid backup file'); }
   };
@@ -747,7 +831,7 @@ function importData(evt) {
 function clearAll() {
   if (!confirm('Delete ALL data permanently? This cannot be undone.')) return;
   if (!confirm('Are you absolutely sure?')) return;
-  db = { mining: [], bolt: [], betting: [], expenses: [] };
+  db = { mining: [], bolt: [], betting: [], expenses: [], income: [] };
   save(); renderAll(); toast('All data cleared');
 }
 
@@ -755,14 +839,15 @@ function clearAll() {
    INIT
 ============================================================ */
 function renderAll() {
-  renderMining(); renderBolt(); renderBetting(); renderExpenses();
+  renderMining(); renderBolt(); renderBetting();
+  renderIncome(); renderExpenses();
   renderDashboard(); renderDataStats();
 }
 
 function init() {
   load();
   const t = today();
-  ['dashDate','mDate','bDate','tDate','eDate'].forEach(id => {
+  ['dashDate','mDate','bDate','tDate','iDate','eDate'].forEach(id => {
     document.getElementById(id).value = t;
   });
   document.getElementById('dashDate').addEventListener('change', renderDashboard);
@@ -772,10 +857,11 @@ function init() {
 
 init();
 
-// Register service worker for offline use
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW fail', e));
   });
 }
 </script>
+</body>
+</html>
