@@ -10,7 +10,7 @@
 <title>Business Finance Tracker</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -83,9 +83,24 @@
     pointer-events: none; z-index: 100;
   }
   .toast.show { opacity: 1; }
-  canvas { max-height: 280px; }
+  canvas { max-height: 300px; }
   .muted { color: var(--muted); font-size: 0.8rem; }
   .empty { text-align: center; color: var(--muted); padding: 20px; font-size: 0.85rem; }
+  .sub-panel { display: none; }
+  .sub-panel.active { display: block; }
+  .fuel-bar {
+    height: 22px; background: var(--bg); border-radius: 6px; overflow: hidden;
+    margin-top: 6px; border: 1px solid var(--border);
+  }
+  .fuel-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--accent)); transition: width 0.4s; }
+  .fuel-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .toggle-btns { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .toggle-btns button { flex: 1; min-width: 100px; }
+  .toggle-btns button.active { background: var(--accent); color: #0f172a; }
+  .commission-mode { display: none; }
+  .commission-mode.active { display: block; }
+  .section-title { color: var(--accent); font-size: 1rem; margin: 12px 0 8px; }
+  .tag { display: inline-block; background: var(--card2); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -122,19 +137,33 @@
   <h2 id="dashTitle">Today's Summary</h2>
   <div class="grid" id="dashStats"></div>
 
-  <h2>Personal Cash Flow</h2>
-  <div class="grid" id="personalStats"></div>
+  <h2>Per-Business Summary</h2>
+  <div class="card scroll">
+    <table id="bizSummaryTable">
+      <thead><tr>
+        <th>Business</th><th class="amt">Income</th><th class="amt">Expenses</th>
+        <th class="amt">Profit</th><th class="amt">Margin</th><th>Trend</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
-  <h2>Profit by Business</h2>
-  <div class="card"><canvas id="profitChart"></canvas></div>
+  <h2>Profit Share (Pie)</h2>
+  <div class="card"><canvas id="pieChart"></canvas></div>
 
-  <h2>Weekly Overview (last 7 days)</h2>
-  <div class="card"><canvas id="weeklyChart"></canvas></div>
+  <h2>Income vs Expenses vs Profit (Bar)</h2>
+  <div class="card"><canvas id="barChart"></canvas></div>
+
+  <h2>7-Day Trend by Business</h2>
+  <div class="card"><canvas id="trendChart"></canvas></div>
+
+  <h2>⛽ Fuel Status (Bolt)</h2>
+  <div class="card" id="fuelStatusCard"></div>
 
   <h2>Monthly Projection</h2>
   <div class="grid" id="projectionStats"></div>
 
-  <h2>Key Insights</h2>
+  <h2>🤖 AI Business Insights</h2>
   <div class="card" id="insights"></div>
 </div>
 
@@ -174,30 +203,154 @@
 
 <!-- ================= BOLT ================= -->
 <div id="bolt" class="panel">
-  <div class="card">
-    <h2>Add Bolt Day</h2>
-    <div class="row">
-      <div><label>Date</label><input type="date" id="bDate" /></div>
-      <div><label>Fuel Cost</label><input type="number" id="bFuel" step="0.01" placeholder="0" /></div>
-      <div><label>Bolt Commission</label><input type="number" id="bCommission" step="0.01" placeholder="0" /></div>
-      <div><label>Other Expenses</label><input type="number" id="bOther" step="0.01" placeholder="0" /></div>
+  <div class="toggle-btns">
+    <button class="active" onclick="showBoltSub('day', this)">🚗 Day Log</button>
+    <button onclick="showBoltSub('fuel', this)">⛽ Fuel Purchase</button>
+    <button onclick="showBoltSub('commission', this)">💼 Commission</button>
+    <button onclick="showBoltSub('repair', this)">🔧 Repairs & Papers</button>
+  </div>
+
+  <!-- BOLT DAY LOG -->
+  <div id="bolt-day" class="sub-panel active">
+    <div class="card">
+      <h2>Add Bolt Day (Trip Log)</h2>
+      <div class="row">
+        <div><label>Date</label><input type="date" id="bDate" /></div>
+        <div><label>Odometer Start (km)</label><input type="number" id="bKmStart" step="0.1" placeholder="e.g. 45000" /></div>
+        <div><label>Odometer End (km)</label><input type="number" id="bKmEnd" step="0.1" placeholder="e.g. 45120" /></div>
+        <div><label>Litres Used (leave blank to auto-calc)</label><input type="number" id="bLitres" step="0.01" placeholder="auto" /></div>
+      </div>
+      <label style="margin-top:8px">Trip Incomes (comma separated)</label>
+      <input type="text" id="bTrips" placeholder="e.g. 2500, 3000, 1800, 2200" />
+      <div class="row" style="margin-top:8px">
+        <div><label>Other Expenses (₦)</label><input type="number" id="bOther" step="0.01" placeholder="0" /></div>
+      </div>
+      <p class="muted" style="margin-top:8px">ℹ️ Commission and repairs are recorded in their own tabs and auto-applied to profit.</p>
+      <div class="actions">
+        <button class="btn-primary" onclick="addBoltDay()">Add Day</button>
+      </div>
     </div>
-    <label style="margin-top:8px">Trip Incomes (comma separated)</label>
-    <input type="text" id="bTrips" placeholder="e.g. 2500, 3000, 1800, 2200" />
-    <div class="actions">
-      <button class="btn-primary" onclick="addBolt()">Add Day</button>
+
+    <h2>Bolt Day Records</h2>
+    <div class="card scroll">
+      <table id="boltTable">
+        <thead><tr>
+          <th>Date</th><th class="amt">Trips</th><th class="amt">Income</th>
+          <th class="amt">Km</th><th class="amt">Litres</th>
+          <th class="amt">Fuel Cost</th><th class="amt">Other</th>
+          <th class="amt">Profit</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
-  <h2>Bolt Records</h2>
-  <div class="card scroll">
-    <table id="boltTable">
-      <thead><tr>
-        <th>Date</th><th class="amt">Trips</th><th class="amt">Income</th>
-        <th class="amt">Fuel</th><th class="amt">Commission</th>
-        <th class="amt">Other</th><th class="amt">Profit</th><th></th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
+
+  <!-- FUEL PURCHASE -->
+  <div id="bolt-fuel" class="sub-panel">
+    <div class="card">
+      <h2>Add Fuel Purchase</h2>
+      <p class="muted" style="margin-bottom:10px">Fuel bought today can be used over several days. The app tracks your running fuel balance.</p>
+      <div class="row">
+        <div><label>Date</label><input type="date" id="fDate" /></div>
+        <div><label>Litres Bought</label><input type="number" id="fLitres" step="0.01" placeholder="e.g. 20" /></div>
+        <div><label>Total Cost (₦)</label><input type="number" id="fCost" step="0.01" placeholder="0" /></div>
+        <div><label>Odometer at Purchase (km, optional)</label><input type="number" id="fOdo" step="0.1" placeholder="e.g. 45000" /></div>
+        <div><label>Note</label><input type="text" id="fNote" placeholder="e.g. filled tank" /></div>
+      </div>
+      <div class="actions">
+        <button class="btn-primary" onclick="addFuel()">Add Fuel Purchase</button>
+      </div>
+    </div>
+
+    <h2>⛽ Fuel Balance</h2>
+    <div class="card" id="fuelBalanceCard"></div>
+
+    <h2>Fuel Purchase Records</h2>
+    <div class="card scroll">
+      <table id="fuelTable">
+        <thead><tr>
+          <th>Date</th><th class="amt">Litres</th><th class="amt">Cost</th>
+          <th class="amt">₦/L</th><th>Odometer</th><th>Note</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- COMMISSION -->
+  <div id="bolt-commission" class="sub-panel">
+    <div class="card">
+      <h2>Add Bolt Commission</h2>
+      <p class="muted" style="margin-bottom:10px">Enter exactly what the Bolt app shows. Choose Daily for a single day, or Range for "from – to".</p>
+      <div class="row">
+        <div>
+          <label>Mode</label>
+          <select id="cMode" onchange="toggleCommissionMode()">
+            <option value="daily">Daily</option>
+            <option value="range">Date Range</option>
+          </select>
+        </div>
+        <div class="commission-mode active" id="cSingleDate">
+          <label>Date</label><input type="date" id="cDate" />
+        </div>
+        <div class="commission-mode" id="cRangeWrap">
+          <label>From</label><input type="date" id="cFrom" />
+        </div>
+        <div class="commission-mode" id="cRangeWrap2">
+          <label>To</label><input type="date" id="cTo" />
+        </div>
+        <div><label>Commission Amount (₦)</label><input type="number" id="cAmount" step="0.01" placeholder="0" /></div>
+        <div><label>Note (optional)</label><input type="text" id="cNote" placeholder="" /></div>
+      </div>
+      <div class="actions">
+        <button class="btn-primary" onclick="addCommission()">Add Commission</button>
+      </div>
+    </div>
+
+    <h2>Commission Records</h2>
+    <div class="card scroll">
+      <table id="commissionTable">
+        <thead><tr>
+          <th>Date / Range</th><th>Mode</th><th class="amt">Amount</th>
+          <th class="amt">Days</th><th class="amt">Per Day</th><th>Note</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- REPAIRS -->
+  <div id="bolt-repair" class="sub-panel">
+    <div class="card">
+      <h2>Add Repair / Vehicle Papers</h2>
+      <div class="row">
+        <div><label>Date</label><input type="date" id="rDate" /></div>
+        <div><label>Amount (₦)</label><input type="number" id="rCost" step="0.01" placeholder="0" /></div>
+        <div><label>Type</label>
+          <select id="rType">
+            <option>Repair</option>
+            <option>Vehicle Papers</option>
+            <option>Insurance</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div><label>Description</label><input type="text" id="rNote" placeholder="e.g. brake pads, renewal" /></div>
+      </div>
+      <div class="actions">
+        <button class="btn-primary" onclick="addRepair()">Add Repair</button>
+      </div>
+    </div>
+
+    <h2>Repair Records</h2>
+    <div class="card scroll">
+      <table id="repairTable">
+        <thead><tr>
+          <th>Date</th><th>Type</th><th>Description</th>
+          <th class="amt">Amount</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -314,7 +467,7 @@
     </div>
   </div>
   <div class="card">
-    <h2>Quick Stats</h2>
+    <h2>Data Counts</h2>
     <div id="dataStats" class="grid"></div>
   </div>
 </div>
@@ -325,7 +478,10 @@
    DATA LAYER
 ============================================================ */
 const KEY = 'biz_finance_v1';
-let db = { mining: [], bolt: [], betting: [], expenses: [], income: [] };
+let db = {
+  mining: [], bolt: [], betting: [], expenses: [], income: [],
+  fuel: [], commission: [], repair: []
+};
 
 function load() {
   try {
@@ -337,7 +493,10 @@ function load() {
         bolt: parsed.bolt || [],
         betting: parsed.betting || [],
         expenses: parsed.expenses || [],
-        income: parsed.income || []
+        income: parsed.income || [],
+        fuel: parsed.fuel || [],
+        commission: parsed.commission || [],
+        repair: parsed.repair || []
       };
     }
   } catch(e) { console.warn(e); }
@@ -370,8 +529,76 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.getElementById(tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'dashboard') renderDashboard();
     if (tab.dataset.tab === 'data') renderDataStats();
+    if (tab.dataset.tab === 'bolt') renderBolt();
   });
 });
+
+function showBoltSub(name, btn) {
+  document.querySelectorAll('#bolt .sub-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('bolt-' + name).classList.add('active');
+  document.querySelectorAll('#bolt .toggle-btns button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function toggleCommissionMode() {
+  const mode = document.getElementById('cMode').value;
+  document.getElementById('cSingleDate').classList.toggle('active', mode === 'daily');
+  document.getElementById('cRangeWrap').classList.toggle('active', mode === 'range');
+  document.getElementById('cRangeWrap2').classList.toggle('active', mode === 'range');
+}
+
+/* ============================================================
+   FUEL INTELLIGENCE HELPERS
+============================================================ */
+// Learned avg km/L from all bolt days that have km + litres
+function avgKmPerLitre() {
+  const valid = db.bolt.filter(d =>
+    d.kmStart != null && d.kmEnd != null && d.litres != null &&
+    (d.kmEnd - d.kmStart) > 0 && d.litres > 0
+  );
+  if (!valid.length) return null;
+  const totalKm = valid.reduce((s,d) => s + (d.kmEnd - d.kmStart), 0);
+  const totalL = valid.reduce((s,d) => s + d.litres, 0);
+  return totalL > 0 ? totalKm / totalL : null;
+}
+// Average fuel price per litre from purchases
+function avgPricePerLitre() {
+  const valid = db.fuel.filter(f => f.litres > 0 && f.cost > 0);
+  if (!valid.length) return null;
+  const totalL = valid.reduce((s,f) => s + f.litres, 0);
+  const totalC = valid.reduce((s,f) => s + f.cost, 0);
+  return totalL > 0 ? totalC / totalL : null;
+}
+// Fuel balance (bought − used)
+function fuelBalance() {
+  const bought = db.fuel.reduce((s,f) => s + (f.litres || 0), 0);
+  const used = db.bolt.reduce((s,d) => s + (d.litres || 0), 0);
+  return bought - used;
+}
+// Commission applicable to a specific date (from daily or range records)
+function commissionForDate(dateStr) {
+  let total = 0;
+  db.commission.forEach(c => {
+    if (c.mode === 'daily' && c.date === dateStr) {
+      total += c.amount;
+    } else if (c.mode === 'range' && c.from && c.to) {
+      if (dateStr >= c.from && dateStr <= c.to) {
+        const days = daysBetween(c.from, c.to) + 1;
+        total += c.amount / days;
+      }
+    }
+  });
+  return total;
+}
+function daysBetween(a, b) {
+  const da = new Date(a + 'T00:00:00');
+  const db_ = new Date(b + 'T00:00:00');
+  return Math.round((db_ - da) / (1000*60*60*24));
+}
+// Repairs applicable to a date
+function repairsForDate(dateStr) {
+  return db.repair.filter(r => r.date === dateStr).reduce((s,r) => s + r.amount, 0);
+}
 
 /* ============================================================
    MINING
@@ -397,7 +624,7 @@ function clearMiningForm() {
 }
 function deleteMining(id) {
   if (!confirm('Delete this transaction?')) return;
-  db.mining = db.mining.filter(x => x.id !== id); save(); renderMining();
+  db.mining = db.mining.filter(x => x.id !== id); save(); renderMining(); renderDashboard();
 }
 function renderMining() {
   const tb = document.querySelector('#miningTable tbody');
@@ -420,48 +647,268 @@ function renderMining() {
 }
 
 /* ============================================================
-   BOLT (with Commission)
+   BOLT — DAY LOG
 ============================================================ */
-function addBolt() {
+function addBoltDay() {
   const date = document.getElementById('bDate').value || today();
-  const fuel = parseFloat(document.getElementById('bFuel').value) || 0;
-  const commission = parseFloat(document.getElementById('bCommission').value) || 0;
+  const kmStart = parseFloat(document.getElementById('bKmStart').value);
+  const kmEnd = parseFloat(document.getElementById('bKmEnd').value);
+  const litresRaw = document.getElementById('bLitres').value;
   const other = parseFloat(document.getElementById('bOther').value) || 0;
   const tripsRaw = document.getElementById('bTrips').value.trim();
+
   if (!tripsRaw) return toast('Enter trip incomes');
   const trips = tripsRaw.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
   if (!trips.length) return toast('Invalid trips');
-
   const income = trips.reduce((a,b) => a+b, 0);
-  const profit = income - fuel - commission - other;
-  db.bolt.push({ id: uid(), date, fuel, commission, other, trips, income, profit });
+
+  // Determine km
+  let km = null;
+  if (!isNaN(kmStart) && !isNaN(kmEnd) && kmEnd >= kmStart) {
+    km = kmEnd - kmStart;
+  }
+
+  // Determine litres used (auto or manual)
+  let litres = null;
+  if (litresRaw !== '' && !isNaN(parseFloat(litresRaw))) {
+    litres = parseFloat(litresRaw);
+  } else if (km !== null) {
+    const avg = avgKmPerLitre();
+    if (avg && avg > 0) {
+      litres = km / avg;
+      litres = Math.round(litres * 100) / 100;
+    }
+  }
+
+  // Fuel cost for the day = litres used × avg price per litre
+  const pricePerL = avgPricePerLitre();
+  const fuelCost = (litres !== null && pricePerL) ? litres * pricePerL : 0;
+
+  // Commission for this date (from commission records)
+  const commission = commissionForDate(date);
+  // Repairs for this date
+  const repair = repairsForDate(date);
+
+  const profit = income - fuelCost - commission - other - repair;
+
+  db.bolt.push({
+    id: uid(), date,
+    trips, income,
+    kmStart: isNaN(kmStart) ? null : kmStart,
+    kmEnd: isNaN(kmEnd) ? null : kmEnd,
+    km,
+    litres,
+    fuelCost,
+    other,
+    commission,
+    repair,
+    profit
+  });
   save(); renderBolt(); clearBoltForm();
   toast('Bolt day added');
 }
 function clearBoltForm() {
-  ['bFuel','bCommission','bOther','bTrips'].forEach(id => document.getElementById(id).value = '');
+  ['bKmStart','bKmEnd','bLitres','bOther','bTrips'].forEach(id => document.getElementById(id).value = '');
 }
-function deleteBolt(id) {
+function deleteBoltDay(id) {
   if (!confirm('Delete this day?')) return;
-  db.bolt = db.bolt.filter(x => x.id !== id); save(); renderBolt();
+  db.bolt = db.bolt.filter(x => x.id !== id); save(); renderBolt(); renderDashboard();
 }
 function renderBolt() {
   const tb = document.querySelector('#boltTable tbody');
   tb.innerHTML = '';
   const rows = [...db.bolt].sort((a,b) => b.date.localeCompare(a.date));
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">No records yet</td></tr>'; return; }
-  rows.forEach(r => {
-    const commission = r.commission || 0;
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="9" class="empty">No records yet</td></tr>'; }
+  else rows.forEach(r => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${r.date}</td>
       <td class="amt">${r.trips.length}</td>
       <td class="amt">${fmt(r.income)}</td>
-      <td class="amt">${fmt(r.fuel)}</td>
-      <td class="amt">${fmt(commission)}</td>
+      <td class="amt">${r.km != null ? r.km.toFixed(1) : '—'}</td>
+      <td class="amt">${r.litres != null ? r.litres.toFixed(2) : '—'}</td>
+      <td class="amt">${fmt(r.fuelCost)}</td>
       <td class="amt">${fmt(r.other)}</td>
       <td class="amt ${r.profit >= 0 ? 'pos' : 'neg'}">${fmt(r.profit)}</td>
-      <td><button class="btn-danger btn-small" onclick="deleteBolt('${r.id}')">✕</button></td>
+      <td><button class="btn-danger btn-small" onclick="deleteBoltDay('${r.id}')">✕</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+  renderFuelSection();
+  renderCommissionTable();
+  renderRepairTable();
+}
+
+/* ============================================================
+   FUEL PURCHASE
+============================================================ */
+function addFuel() {
+  const date = document.getElementById('fDate').value || today();
+  const litres = parseFloat(document.getElementById('fLitres').value) || 0;
+  const cost = parseFloat(document.getElementById('fCost').value) || 0;
+  const odo = parseFloat(document.getElementById('fOdo').value);
+  const note = document.getElementById('fNote').value.trim();
+  if (!litres || !cost) return toast('Enter litres and cost');
+  db.fuel.push({ id: uid(), date, litres, cost, odo: isNaN(odo) ? null : odo, note });
+  save(); renderBolt(); renderDashboard();
+  ['fLitres','fCost','fOdo','fNote'].forEach(id => document.getElementById(id).value = '');
+  toast('Fuel purchase added');
+}
+function deleteFuel(id) {
+  if (!confirm('Delete this purchase?')) return;
+  db.fuel = db.fuel.filter(x => x.id !== id); save(); renderBolt(); renderDashboard();
+}
+function renderFuelSection() {
+  // Balance card
+  const bought = db.fuel.reduce((s,f) => s + f.litres, 0);
+  const used = db.bolt.reduce((s,d) => s + (d.litres || 0), 0);
+  const balance = bought - used;
+  const avg = avgKmPerLitre();
+  const pricePerL = avgPricePerLitre();
+  const kmLeft = avg ? balance * avg : null;
+  const avgDailyKm = (() => {
+    const recent = db.bolt.filter(d => d.km != null).slice(-7);
+    if (!recent.length) return null;
+    return recent.reduce((s,d) => s + d.km, 0) / recent.length;
+  })();
+  const daysLeft = (avgDailyKm && kmLeft != null) ? kmLeft / avgDailyKm : null;
+
+  const pct = bought > 0 ? Math.max(0, Math.min(100, (balance / bought) * 100)) : 0;
+  document.getElementById('fuelBalanceCard').innerHTML = `
+    <div class="stat"><div class="label">Fuel Balance</div><div class="value">${balance.toFixed(2)} L</div></div>
+    <div class="fuel-bar"><div class="fuel-fill" style="width:${pct}%"></div></div>
+    <div class="fuel-info"><span>Total bought: ${bought.toFixed(2)} L</span><span>Total used: ${used.toFixed(2)} L</span></div>
+    <div class="grid" style="margin-top:10px">
+      <div class="stat"><div class="label">Avg km/L</div><div class="value">${avg ? avg.toFixed(2) : '—'}</div></div>
+      <div class="stat"><div class="label">Avg ₦/L</div><div class="value">${pricePerL ? '₦' + pricePerL.toFixed(0) : '—'}</div></div>
+      <div class="stat"><div class="label">Km Remaining</div><div class="value">${kmLeft != null ? kmLeft.toFixed(0) : '—'}</div></div>
+      <div class="stat"><div class="label">Est. Days Left</div><div class="value">${daysLeft != null ? daysLeft.toFixed(1) : '—'}</div></div>
+    </div>
+  `;
+
+  // Also mirror into dashboard fuel card
+  document.getElementById('fuelStatusCard').innerHTML = document.getElementById('fuelBalanceCard').innerHTML;
+
+  // Table
+  const tb = document.querySelector('#fuelTable tbody');
+  tb.innerHTML = '';
+  const rows = [...db.fuel].sort((a,b) => b.date.localeCompare(a.date));
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">No fuel purchases yet</td></tr>'; return; }
+  rows.forEach(f => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${f.date}</td>
+      <td class="amt">${f.litres.toFixed(2)}</td>
+      <td class="amt">${fmt(f.cost)}</td>
+      <td class="amt">${(f.cost / f.litres).toFixed(0)}</td>
+      <td>${f.odo != null ? f.odo.toFixed(0) : '—'}</td>
+      <td>${f.note || ''}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteFuel('${f.id}')">✕</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   COMMISSION
+============================================================ */
+function addCommission() {
+  const mode = document.getElementById('cMode').value;
+  const amount = parseFloat(document.getElementById('cAmount').value) || 0;
+  const note = document.getElementById('cNote').value.trim();
+  if (!amount) return toast('Enter commission amount');
+
+  if (mode === 'daily') {
+    const date = document.getElementById('cDate').value || today();
+    db.commission.push({ id: uid(), mode: 'daily', date, amount, note });
+  } else {
+    const from = document.getElementById('cFrom').value;
+    const to = document.getElementById('cTo').value;
+    if (!from || !to) return toast('Enter From and To dates');
+    if (to < from) return toast('To date must be after From');
+    db.commission.push({ id: uid(), mode: 'range', from, to, amount, note });
+  }
+  save();
+  // Recalculate commission on existing bolt days for affected dates
+  recalcBoltCommissions();
+  renderBolt(); renderDashboard();
+  ['cAmount','cNote'].forEach(id => document.getElementById(id).value = '');
+  toast('Commission added');
+}
+function deleteCommission(id) {
+  if (!confirm('Delete this commission?')) return;
+  db.commission = db.commission.filter(x => x.id !== id);
+  save(); recalcBoltCommissions(); renderBolt(); renderDashboard();
+}
+function recalcBoltCommissions() {
+  db.bolt.forEach(d => {
+    d.commission = commissionForDate(d.date);
+    d.repair = repairsForDate(d.date);
+    d.profit = d.income - (d.fuelCost || 0) - d.commission - d.other - d.repair;
+  });
+  save();
+}
+function renderCommissionTable() {
+  const tb = document.querySelector('#commissionTable tbody');
+  tb.innerHTML = '';
+  const rows = [...db.commission].sort((a,b) => (b.date||b.from||'').localeCompare(a.date||a.from||''));
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">No commission records yet</td></tr>'; return; }
+  rows.forEach(c => {
+    const tr = document.createElement('tr');
+    if (c.mode === 'daily') {
+      tr.innerHTML = `
+        <td>${c.date}</td><td>Daily</td>
+        <td class="amt">${fmt(c.amount)}</td>
+        <td class="amt">1</td>
+        <td class="amt">${fmt(c.amount)}</td>
+        <td>${c.note || ''}</td>
+        <td><button class="btn-danger btn-small" onclick="deleteCommission('${c.id}')">✕</button></td>
+      `;
+    } else {
+      const days = daysBetween(c.from, c.to) + 1;
+      tr.innerHTML = `
+        <td>${c.from} → ${c.to}</td><td>Range</td>
+        <td class="amt">${fmt(c.amount)}</td>
+        <td class="amt">${days}</td>
+        <td class="amt">${fmt(c.amount / days)}</td>
+        <td>${c.note || ''}</td>
+        <td><button class="btn-danger btn-small" onclick="deleteCommission('${c.id}')">✕</button></td>
+      `;
+    }
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================================================
+   REPAIRS
+============================================================ */
+function addRepair() {
+  const date = document.getElementById('rDate').value || today();
+  const amount = parseFloat(document.getElementById('rCost').value) || 0;
+  const type = document.getElementById('rType').value;
+  const note = document.getElementById('rNote').value.trim();
+  if (!amount) return toast('Enter amount');
+  db.repair.push({ id: uid(), date, amount, type, note });
+  save(); recalcBoltCommissions(); renderBolt(); renderDashboard();
+  ['rCost','rNote'].forEach(id => document.getElementById(id).value = '');
+  toast('Repair added');
+}
+function deleteRepair(id) {
+  if (!confirm('Delete this repair?')) return;
+  db.repair = db.repair.filter(x => x.id !== id);
+  save(); recalcBoltCommissions(); renderBolt(); renderDashboard();
+}
+function renderRepairTable() {
+  const tb = document.querySelector('#repairTable tbody');
+  tb.innerHTML = '';
+  const rows = [...db.repair].sort((a,b) => b.date.localeCompare(a.date));
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">No repair records yet</td></tr>'; return; }
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.date}</td><td>${r.type}</td><td>${r.note || ''}</td>
+      <td class="amt neg">${fmt(r.amount)}</td>
+      <td><button class="btn-danger btn-small" onclick="deleteRepair('${r.id}')">✕</button></td>
     `;
     tb.appendChild(tr);
   });
@@ -476,11 +923,8 @@ function addBet() {
   const odds = parseFloat(document.getElementById('tOdds').value) || 0;
   const status = document.getElementById('tStatus').value;
   let payout = parseFloat(document.getElementById('tPayout').value);
-  if (isNaN(payout)) {
-    payout = status === 'Won' ? stake * odds : 0;
-  }
+  if (isNaN(payout)) payout = status === 'Won' ? stake * odds : 0;
   if (!stake) return toast('Enter stake amount');
-
   const pl = status === 'Pending' ? 0 : payout - stake;
   db.betting.push({ id: uid(), date, stake, odds, status, payout, pl });
   save(); renderBetting(); clearBetForm();
@@ -491,7 +935,7 @@ function clearBetForm() {
 }
 function deleteBet(id) {
   if (!confirm('Delete this ticket?')) return;
-  db.betting = db.betting.filter(x => x.id !== id); save(); renderBetting();
+  db.betting = db.betting.filter(x => x.id !== id); save(); renderBetting(); renderDashboard();
 }
 function renderBetting() {
   const tb = document.querySelector('#betTable tbody');
@@ -523,9 +967,7 @@ function addIncome() {
   const category = document.getElementById('iCategory').value;
   const source = document.getElementById('iSource').value.trim();
   const notes = document.getElementById('iNotes').value.trim();
-
   if (!amount) return toast('Enter amount');
-
   db.income.push({ id: uid(), date, amount, category, source, notes });
   save(); renderIncome(); clearIncomeForm();
   toast('Income added');
@@ -535,7 +977,7 @@ function clearIncomeForm() {
 }
 function deleteIncome(id) {
   if (!confirm('Delete this income record?')) return;
-  db.income = db.income.filter(x => x.id !== id); save(); renderIncome();
+  db.income = db.income.filter(x => x.id !== id); save(); renderIncome(); renderDashboard();
 }
 function renderIncome() {
   const tb = document.querySelector('#incomeTable tbody');
@@ -565,7 +1007,6 @@ function addExpense() {
   const amount = parseFloat(document.getElementById('eAmount').value) || 0;
   const cat = document.getElementById('eCat').value;
   if (!desc || !amount) return toast('Enter description and amount');
-
   db.expenses.push({ id: uid(), date, desc, amount, cat });
   save(); renderExpenses(); clearExpForm();
   toast('Expense added');
@@ -575,7 +1016,7 @@ function clearExpForm() {
 }
 function deleteExpense(id) {
   if (!confirm('Delete this expense?')) return;
-  db.expenses = db.expenses.filter(x => x.id !== id); save(); renderExpenses();
+  db.expenses = db.expenses.filter(x => x.id !== id); save(); renderExpenses(); renderDashboard();
 }
 function renderExpenses() {
   const tb = document.querySelector('#expTable tbody');
@@ -630,7 +1071,11 @@ function aggregate(start, end) {
   const miningProfit = mining.reduce((s,r) => s + (r.profit || 0), 0);
 
   const boltIncome = bolt.reduce((s,r) => s + r.income, 0);
-  const boltExpenses = bolt.reduce((s,r) => s + r.fuel + (r.commission || 0) + r.other, 0);
+  const boltFuelCost = bolt.reduce((s,r) => s + (r.fuelCost || 0), 0);
+  const boltCommission = bolt.reduce((s,r) => s + (r.commission || 0), 0);
+  const boltRepair = bolt.reduce((s,r) => s + (r.repair || 0), 0);
+  const boltOther = bolt.reduce((s,r) => s + (r.other || 0), 0);
+  const boltExpenses = boltFuelCost + boltCommission + boltRepair + boltOther;
   const boltProfit = bolt.reduce((s,r) => s + r.profit, 0);
 
   const betStake = betting.reduce((s,r) => s + r.stake, 0);
@@ -647,19 +1092,20 @@ function aggregate(start, end) {
 
   return {
     mining: { count: mining.length, investment: miningInvestment, profit: miningProfit },
-    bolt: { count: bolt.length, income: boltIncome, expenses: boltExpenses, profit: boltProfit },
+    bolt: { count: bolt.length, income: boltIncome, expenses: boltExpenses,
+            fuelCost: boltFuelCost, commission: boltCommission, repair: boltRepair,
+            other: boltOther, profit: boltProfit },
     betting: { count: betting.length, stake: betStake, payout: betPayout, pl: betPL },
     expenses: { count: expenses.length, total: personalExpenses },
     income: { count: income.length, total: personalIncome },
-    personalNet,
-    totalIncome, totalExpenses, net
+    personalNet, totalIncome, totalExpenses, net
   };
 }
 
 /* ============================================================
    DASHBOARD
 ============================================================ */
-let profitChart, weeklyChart;
+let pieChart, barChart, trendChart;
 
 function renderDashboard() {
   const date = document.getElementById('dashDate').value || today();
@@ -682,30 +1128,73 @@ function renderDashboard() {
     <div class="stat"><div class="label">Sports Inv. P/L</div><div class="value ${a.betting.pl >= 0 ? 'pos' : 'neg'}">₦${fmtInt(a.betting.pl)}</div></div>
     <div class="stat"><div class="label">Personal Income</div><div class="value pos">₦${fmtInt(a.income.total)}</div></div>
     <div class="stat"><div class="label">Personal Expenses</div><div class="value neg">₦${fmtInt(a.expenses.total)}</div></div>
-    <div class="stat"><div class="label">Total Investment</div><div class="value">₦${fmtInt(a.mining.investment + a.betting.stake)}</div></div>
   `;
 
-  document.getElementById('personalStats').innerHTML = `
-    <div class="stat"><div class="label">Personal Income</div><div class="value pos">₦${fmtInt(a.income.total)}</div></div>
-    <div class="stat"><div class="label">Personal Expenses</div><div class="value neg">₦${fmtInt(a.expenses.total)}</div></div>
-    <div class="stat"><div class="label">Personal Net</div><div class="value ${a.personalNet >= 0 ? 'pos' : 'neg'}">₦${fmtInt(a.personalNet)}</div></div>
-  `;
+  // Per-business summary table
+  const prevStart = addDays(start, -daysBetween(start, end) - 1);
+  const prevEnd = addDays(start, -1);
+  const p = aggregate(prevStart, prevEnd);
+  const row = (name, inc, exp, prof, prevProf) => {
+    const margin = inc > 0 ? (prof / inc * 100) : 0;
+    let trend = '—';
+    if (prevProf !== null && prevProf !== undefined) {
+      if (prof > prevProf) trend = '↑';
+      else if (prof < prevProf) trend = '↓';
+      else trend = '→';
+    }
+    return `<tr>
+      <td>${name}</td>
+      <td class="amt">₦${fmtInt(inc)}</td>
+      <td class="amt">₦${fmtInt(exp)}</td>
+      <td class="amt ${prof >= 0 ? 'pos' : 'neg'}">₦${fmtInt(prof)}</td>
+      <td class="amt">${margin.toFixed(0)}%</td>
+      <td>${trend}</td>
+    </tr>`;
+  };
+  document.querySelector('#bizSummaryTable tbody').innerHTML =
+    row('⛏️ Mining', a.mining.profit + a.mining.investment, a.mining.investment, a.mining.profit, p.mining.profit) +
+    row('🚗 Bolt', a.bolt.income, a.bolt.expenses, a.bolt.profit, p.bolt.profit) +
+    row('🎯 Sports', a.betting.payout, a.betting.stake, a.betting.pl, p.betting.pl) +
+    row('💰 Personal', a.income.total, a.expenses.total, a.personalNet, p.personalNet);
 
-  const ctx1 = document.getElementById('profitChart').getContext('2d');
-  if (profitChart) profitChart.destroy();
-  profitChart = new Chart(ctx1, {
-    type: 'bar',
+  // Pie: profit share
+  const pieData = [
+    Math.max(0, a.mining.profit),
+    Math.max(0, a.bolt.profit),
+    Math.max(0, a.betting.pl),
+    Math.max(0, a.personalNet)
+  ];
+  const totalPie = pieData.reduce((s,x) => s+x, 0) || 1;
+  const pieLabels = ['Mining', 'Bolt', 'Sports', 'Personal'];
+  const pieColors = ['#22d3ee', '#22c55e', '#eab308', '#a855f7'];
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
+    type: 'pie',
     data: {
-      labels: ['Mining', 'Bolt', 'Sports Inv.'],
-      datasets: [{
-        label: 'Profit (₦)',
-        data: [a.mining.profit, a.bolt.profit, a.betting.pl],
-        backgroundColor: ['#22d3ee', '#22c55e', '#eab308']
-      }]
+      labels: pieLabels.map((l,i) => `${l} (${(pieData[i]/totalPie*100).toFixed(0)}%)`),
+      datasets: [{ data: pieData, backgroundColor: pieColors, borderColor: '#0f172a', borderWidth: 2 }]
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } },
+      plugins: { legend: { labels: { color: '#e2e8f0' } } }
+    }
+  });
+
+  // Bar: income vs expenses vs profit
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Mining', 'Bolt', 'Sports', 'Personal'],
+      datasets: [
+        { label: 'Income', data: [a.mining.profit + a.mining.investment, a.bolt.income, a.betting.payout, a.income.total], backgroundColor: '#22c55e' },
+        { label: 'Expenses', data: [a.mining.investment, a.bolt.expenses, a.betting.stake, a.expenses.total], backgroundColor: '#ef4444' },
+        { label: 'Profit', data: [a.mining.profit, a.bolt.profit, a.betting.pl, a.personalNet], backgroundColor: '#22d3ee' }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#e2e8f0' } } },
       scales: {
         y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
         x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
@@ -713,26 +1202,32 @@ function renderDashboard() {
     }
   });
 
+  // 7-day trend per business
   const days = [];
   for (let i = 6; i >= 0; i--) days.push(addDays(today(), -i));
-  const nets = days.map(d => aggregate(d, d).net);
-  const ctx2 = document.getElementById('weeklyChart').getContext('2d');
-  if (weeklyChart) weeklyChart.destroy();
-  weeklyChart = new Chart(ctx2, {
+  const series = { mining: [], bolt: [], betting: [], personal: [] };
+  days.forEach(d => {
+    const dd = aggregate(d, d);
+    series.mining.push(dd.mining.profit);
+    series.bolt.push(dd.bolt.profit);
+    series.betting.push(dd.betting.pl);
+    series.personal.push(dd.personalNet);
+  });
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), {
     type: 'line',
     data: {
       labels: days.map(d => d.slice(5)),
-      datasets: [{
-        label: 'Net (₦)',
-        data: nets,
-        borderColor: '#22d3ee',
-        backgroundColor: 'rgba(34,211,238,0.15)',
-        fill: true, tension: 0.3, pointRadius: 4
-      }]
+      datasets: [
+        { label: 'Mining', data: series.mining, borderColor: '#22d3ee', tension: 0.3, fill: false },
+        { label: 'Bolt', data: series.bolt, borderColor: '#22c55e', tension: 0.3, fill: false },
+        { label: 'Sports', data: series.betting, borderColor: '#eab308', tension: 0.3, fill: false },
+        { label: 'Personal', data: series.personal, borderColor: '#a855f7', tension: 0.3, fill: false }
+      ]
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } },
+      plugins: { legend: { labels: { color: '#e2e8f0' } } },
       scales: {
         y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
         x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
@@ -740,6 +1235,10 @@ function renderDashboard() {
     }
   });
 
+  // Fuel card (mirror)
+  renderFuelSection();
+
+  // Monthly projection
   const [ms, me] = monthRange(today());
   const ma = aggregate(ms, me);
   const daysWithData = new Set([
@@ -749,11 +1248,9 @@ function renderDashboard() {
     ...db.expenses.filter(r => inRange(r.date, ms, me)).map(r => r.date),
     ...db.income.filter(r => inRange(r.date, ms, me)).map(r => r.date)
   ]).size || 1;
-
   const projIncome = (ma.totalIncome / daysWithData) * 30;
   const projExpenses = (ma.totalExpenses / daysWithData) * 30;
   const projNet = projIncome - projExpenses;
-
   document.getElementById('projectionStats').innerHTML = `
     <div class="stat"><div class="label">Est. Monthly Income</div><div class="value">₦${fmtInt(projIncome)}</div></div>
     <div class="stat"><div class="label">Est. Monthly Expenses</div><div class="value neg">₦${fmtInt(projExpenses)}</div></div>
@@ -761,32 +1258,91 @@ function renderDashboard() {
     <div class="stat"><div class="label">Days Recorded</div><div class="value">${daysWithData}</div></div>
   `;
 
-  const insights = [];
+  // AI insights
+  renderInsights(a, p);
+}
+
+function renderInsights(a, p) {
+  const ins = [];
   const biz = [
     { name: 'Mining', profit: a.mining.profit },
     { name: 'Bolt', profit: a.bolt.profit },
-    { name: 'Sports Investment', profit: a.betting.pl }
+    { name: 'Sports Investment', profit: a.betting.pl },
+    { name: 'Personal', profit: a.personalNet }
   ].sort((x,y) => y.profit - x.profit);
 
-  if (biz[0].profit > 0) insights.push(`✅ Highest profit: <strong>${biz[0].name}</strong> (₦${fmtInt(biz[0].profit)})`);
-  if (biz[2].profit < 0) insights.push(`⚠️ Losing money on: <strong>${biz[2].name}</strong> (₦${fmtInt(biz[2].profit)})`);
-  const reinvest = a.net * 0.5;
-  if (reinvest > 0) insights.push(`💡 Safe to reinvest (50% rule): <strong>₦${fmtInt(reinvest)}</strong>`);
-  if (a.expenses.total > a.totalIncome * 0.5) insights.push(`⚠️ Personal expenses are over 50% of income`);
-  if (a.income.total > 0) insights.push(`🎁 Personal income this period: ₦${fmtInt(a.income.total)}`);
-  if (!insights.length) insights.push('Add transactions to see insights.');
+  if (biz[0].profit > 0) ins.push(`✅ Best performer: <strong>${biz[0].name}</strong> (₦${fmtInt(biz[0].profit)})`);
+  if (biz[biz.length-1].profit < 0) ins.push(`⚠️ Losing money on: <strong>${biz[biz.length-1].name}</strong> (₦${fmtInt(biz[biz.length-1].profit)})`);
 
-  document.getElementById('insights').innerHTML = insights.map(i => `<p style="margin:6px 0">${i}</p>`).join('');
+  // Bolt-specific insights
+  if (a.bolt.count > 0) {
+    if (p.bolt.profit !== 0) {
+      const change = ((a.bolt.profit - p.bolt.profit) / Math.abs(p.bolt.profit)) * 100;
+      if (Math.abs(change) > 5) {
+        ins.push(`🚗 Bolt profit ${change > 0 ? '↑' : '↓'}${Math.abs(change).toFixed(0)}% vs previous period`);
+      }
+    }
+    if (a.bolt.repair > 0) {
+      const pct = (a.bolt.repair / (a.bolt.expenses || 1)) * 100;
+      ins.push(`🔧 Repairs/vehicle papers: ₦${fmtInt(a.bolt.repair)} (${pct.toFixed(0)}% of Bolt expenses)`);
+    }
+    if (a.bolt.commission > 0) {
+      const pct = (a.bolt.commission / (a.bolt.income || 1)) * 100;
+      ins.push(`💼 Bolt commission: ₦${fmtInt(a.bolt.commission)} (${pct.toFixed(1)}% of trip income)`);
+    }
+  }
+
+  // Fuel insights
+  const bal = fuelBalance();
+  const avg = avgKmPerLitre();
+  const price = avgPricePerLitre();
+  if (bal !== 0 || db.fuel.length > 0) {
+    const kmLeft = avg ? bal * avg : null;
+    ins.push(`⛽ Fuel balance: <strong>${bal.toFixed(1)} L</strong>${kmLeft != null ? ` ≈ ${kmLeft.toFixed(0)} km` : ''}${price ? ` (avg ₦${price.toFixed(0)}/L)` : ''}`);
+    if (bal < 5 && db.fuel.length > 0) ins.push(`⚠️ Fuel running low — consider refilling soon`);
+  }
+
+  // Sports insights
+  if (a.betting.count > 0) {
+    const won = db.betting.filter(b => inRange(b.date, a._start || '', a._end || '') && b.status === 'Won').length;
+    const decided = db.betting.filter(b => b.status !== 'Pending').length;
+    if (decided > 0) {
+      const rate = (db.betting.filter(b => b.status === 'Won').length / decided) * 100;
+      ins.push(`🎯 Sports win rate: ${rate.toFixed(0)}% (${db.betting.filter(b => b.status === 'Won').length}/${decided})`);
+    }
+  }
+
+  // Mining
+  if (a.mining.count > 0 && a.mining.investment > 0) {
+    const margin = (a.mining.profit / a.mining.investment) * 100;
+    ins.push(`⛏️ Mining margin: ${margin.toFixed(0)}% on ₦${fmtInt(a.mining.investment)} invested`);
+  }
+
+  // Personal
+  if (a.totalIncome > 0) {
+    const pct = (a.expenses.total / a.totalIncome) * 100;
+    if (pct > 50) ins.push(`⚠️ Personal expenses are ${pct.toFixed(0)}% of total income (over 50%)`);
+    else if (pct > 30) ins.push(`💡 Personal expenses are ${pct.toFixed(0)}% of total income`);
+  }
+
+  // Reinvestment
+  const reinvest = a.net * 0.5;
+  if (reinvest > 0) ins.push(`💰 Safe to reinvest (50% rule): <strong>₦${fmtInt(reinvest)}</strong>`);
+
+  if (!ins.length) ins.push('Add real transactions to see insights.');
+  document.getElementById('insights').innerHTML = ins.map(i => `<p style="margin:6px 0">${i}</p>`).join('');
 }
 
 /* ============================================================
    DATA PANEL
 ============================================================ */
 function renderDataStats() {
-  const el = document.getElementById('dataStats');
-  el.innerHTML = `
-    <div class="stat"><div class="label">Mining Records</div><div class="value">${db.mining.length}</div></div>
+  document.getElementById('dataStats').innerHTML = `
+    <div class="stat"><div class="label">Mining</div><div class="value">${db.mining.length}</div></div>
     <div class="stat"><div class="label">Bolt Days</div><div class="value">${db.bolt.length}</div></div>
+    <div class="stat"><div class="label">Fuel Purchases</div><div class="value">${db.fuel.length}</div></div>
+    <div class="stat"><div class="label">Commissions</div><div class="value">${db.commission.length}</div></div>
+    <div class="stat"><div class="label">Repairs</div><div class="value">${db.repair.length}</div></div>
     <div class="stat"><div class="label">Sports Tickets</div><div class="value">${db.betting.length}</div></div>
     <div class="stat"><div class="label">Personal Income</div><div class="value">${db.income.length}</div></div>
     <div class="stat"><div class="label">Personal Expenses</div><div class="value">${db.expenses.length}</div></div>
@@ -818,7 +1374,10 @@ function importData(evt) {
         bolt: data.bolt || [],
         betting: data.betting || [],
         expenses: data.expenses || [],
-        income: data.income || []
+        income: data.income || [],
+        fuel: data.fuel || [],
+        commission: data.commission || [],
+        repair: data.repair || []
       };
       save(); renderAll();
       toast('Backup restored');
@@ -831,7 +1390,7 @@ function importData(evt) {
 function clearAll() {
   if (!confirm('Delete ALL data permanently? This cannot be undone.')) return;
   if (!confirm('Are you absolutely sure?')) return;
-  db = { mining: [], bolt: [], betting: [], expenses: [], income: [] };
+  db = { mining: [], bolt: [], betting: [], expenses: [], income: [], fuel: [], commission: [], repair: [] };
   save(); renderAll(); toast('All data cleared');
 }
 
@@ -841,17 +1400,22 @@ function clearAll() {
 function renderAll() {
   renderMining(); renderBolt(); renderBetting();
   renderIncome(); renderExpenses();
+  renderFuelSection();
+  renderCommissionTable();
+  renderRepairTable();
   renderDashboard(); renderDataStats();
 }
 
 function init() {
   load();
   const t = today();
-  ['dashDate','mDate','bDate','tDate','iDate','eDate'].forEach(id => {
-    document.getElementById(id).value = t;
+  ['dashDate','mDate','bDate','fDate','cDate','cFrom','cTo','rDate','tDate','iDate','eDate'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = t;
   });
   document.getElementById('dashDate').addEventListener('change', renderDashboard);
   document.getElementById('dashPeriod').addEventListener('change', renderDashboard);
+  toggleCommissionMode();
   renderAll();
 }
 
