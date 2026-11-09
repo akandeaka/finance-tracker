@@ -99,11 +99,25 @@
   .toggle-btns button.active { background: var(--accent); color: #0f172a; }
   .commission-mode { display: none; }
   .commission-mode.active { display: block; }
-  .section-title { color: var(--accent); font-size: 1rem; margin: 12px 0 8px; }
-  .tag { display: inline-block; background: var(--card2); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; color: var(--muted); }
+  .banner {
+    background: rgba(239,68,68,0.15); border: 1px solid var(--red);
+    color: var(--red); padding: 8px 12px; border-radius: 8px;
+    margin-bottom: 10px; font-size: 0.82rem; display: none;
+  }
+  .banner.show { display: block; }
+  .banner.info { background: rgba(234,179,8,0.15); border-color: var(--yellow); color: var(--yellow); }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .status-dot.on { background: var(--green); }
+  .status-dot.off { background: var(--red); }
+  .status-dot.syncing { background: var(--yellow); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  .log-entry { font-family: monospace; font-size: 0.78rem; padding: 4px 0; border-bottom: 1px solid var(--border); }
 </style>
 </head>
 <body>
+
+<div id="tokenWarning" class="banner">⚠️ Your GitHub token is over 80 days old. Please regenerate it soon to avoid losing sync.</div>
+<div id="backupReminder" class="banner info">💾 Last backup was over 7 days ago. <a href="#" onclick="goDataTab();return false;" style="color:inherit;text-decoration:underline;">Back up now</a></div>
 
 <h1>💰 Business Finance Tracker</h1>
 <p class="subtitle">Mining • Bolt • Sports Investment • Personal</p>
@@ -115,6 +129,7 @@
   <div class="tab" data-tab="betting">🎯 Sports Investment</div>
   <div class="tab" data-tab="income">💰 Personal Income</div>
   <div class="tab" data-tab="expenses">🧾 Personal Expenses</div>
+  <div class="tab" data-tab="sync">☁️ Sync</div>
   <div class="tab" data-tab="data">⚙️ Data</div>
 </div>
 
@@ -210,7 +225,6 @@
     <button onclick="showBoltSub('repair', this)">🔧 Repairs & Papers</button>
   </div>
 
-  <!-- BOLT DAY LOG -->
   <div id="bolt-day" class="sub-panel active">
     <div class="card">
       <h2>Add Bolt Day (Trip Log)</h2>
@@ -245,7 +259,6 @@
     </div>
   </div>
 
-  <!-- FUEL PURCHASE -->
   <div id="bolt-fuel" class="sub-panel">
     <div class="card">
       <h2>Add Fuel Purchase</h2>
@@ -277,7 +290,6 @@
     </div>
   </div>
 
-  <!-- COMMISSION -->
   <div id="bolt-commission" class="sub-panel">
     <div class="card">
       <h2>Add Bolt Commission</h2>
@@ -319,7 +331,6 @@
     </div>
   </div>
 
-  <!-- REPAIRS -->
   <div id="bolt-repair" class="sub-panel">
     <div class="card">
       <h2>Add Repair / Vehicle Papers</h2>
@@ -454,11 +465,48 @@
   </div>
 </div>
 
+<!-- ================= SYNC ================= -->
+<div id="sync" class="panel">
+  <div class="card">
+    <h2>☁️ GitHub Sync</h2>
+    <p class="muted" style="margin-bottom:10px">Sync your data to a private GitHub repository so you can access it from any device.</p>
+    <div class="row">
+      <div><label>GitHub Username</label><input type="text" id="syncUser" placeholder="akandeaka" /></div>
+      <div><label>Data Repo</label><input type="text" id="syncRepo" placeholder="finance-data" /></div>
+      <div><label>Branch</label><input type="text" id="syncBranch" placeholder="main" value="main" /></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:2"><label>Personal Access Token</label><input type="password" id="syncToken" placeholder="github_pat_..." /></div>
+      <div><label>Token Date</label><input type="date" id="syncTokenDate" /></div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" onclick="syncConnect()">🔗 Connect</button>
+      <button class="btn-ghost" onclick="syncDisconnect()">🔌 Disconnect</button>
+    </div>
+    <p style="margin-top:10px"><span id="syncStatusDot" class="status-dot off"></span><span id="syncStatusText">Not connected</span></p>
+  </div>
+
+  <div class="card">
+    <h2>Sync Actions</h2>
+    <div class="actions">
+      <button class="btn-primary" onclick="syncNow()">🔄 Sync Now</button>
+      <button class="btn-ghost" onclick="syncPush()">⬆️ Push to Cloud</button>
+      <button class="btn-ghost" onclick="syncPull()">⬇️ Pull from Cloud</button>
+    </div>
+    <p class="muted" style="margin-top:8px" id="syncPending">Pending changes: 0</p>
+  </div>
+
+  <div class="card">
+    <h2>Status Log</h2>
+    <div id="syncLog" style="max-height:240px; overflow-y:auto;"></div>
+  </div>
+</div>
+
 <!-- ================= DATA ================= -->
 <div id="data" class="panel">
   <div class="card">
     <h2>Backup & Restore</h2>
-    <p class="muted">Your data is stored in this browser only. Export regularly to keep it safe.</p>
+    <p class="muted">Your data is stored in this browser only (plus GitHub if connected). Export regularly to keep it safe.</p>
     <div class="actions">
       <button class="btn-primary" onclick="exportData()">⬇️ Export JSON Backup</button>
       <button class="btn-ghost" onclick="document.getElementById('importFile').click()">⬆️ Import Backup</button>
@@ -478,10 +526,25 @@
    DATA LAYER
 ============================================================ */
 const KEY = 'biz_finance_v1';
+const SYNC_KEY = 'biz_finance_sync';
+const LOG_KEY = 'biz_finance_synclog';
+const BACKUP_KEY = 'biz_finance_lastbackup';
+
 let db = {
   mining: [], bolt: [], betting: [], expenses: [], income: [],
   fuel: [], commission: [], repair: []
 };
+
+let syncState = {
+  connected: false,
+  user: '', repo: '', branch: 'main', token: '',
+  lastSync: null, lastSha: null,
+  pendingPush: false
+};
+
+let pushTimer = null;
+
+function nowISO() { return new Date().toISOString(); }
 
 function load() {
   try {
@@ -500,8 +563,34 @@ function load() {
       };
     }
   } catch(e) { console.warn(e); }
+  try {
+    const rawSync = localStorage.getItem(SYNC_KEY);
+    if (rawSync) syncState = { ...syncState, ...JSON.parse(rawSync) };
+  } catch(e) {}
+  migrateAll();
 }
-function save() { localStorage.setItem(KEY, JSON.stringify(db)); }
+
+function migrateAll() {
+  let changed = false;
+  ['mining','bolt','betting','expenses','income','fuel','commission','repair'].forEach(t => {
+    db[t].forEach(r => {
+      if (!r.id) { r.id = uid(); changed = true; }
+      if (r.updatedAt === undefined) { r.updatedAt = nowISO(); changed = true; }
+      if (r.deleted === undefined) { r.deleted = false; changed = true; }
+    });
+  });
+  if (changed) localStorage.setItem(KEY, JSON.stringify(db));
+}
+
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(db));
+  schedulePush();
+}
+
+function saveSync() {
+  localStorage.setItem(SYNC_KEY, JSON.stringify(syncState));
+}
+
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function today() { return new Date().toISOString().slice(0,10); }
 function fmt(n) {
@@ -517,6 +606,11 @@ function toast(msg) {
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 1800);
 }
+function active(table) { return db[table].filter(r => !r.deleted); }
+function markDeleted(table, id) {
+  const r = db[table].find(x => x.id === id);
+  if (r) { r.deleted = true; r.updatedAt = nowISO(); }
+}
 
 /* ============================================================
    TABS
@@ -530,8 +624,13 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'dashboard') renderDashboard();
     if (tab.dataset.tab === 'data') renderDataStats();
     if (tab.dataset.tab === 'bolt') renderBolt();
+    if (tab.dataset.tab === 'sync') renderSyncUI();
   });
 });
+
+function goDataTab() {
+  document.querySelector('.tab[data-tab="data"]').click();
+}
 
 function showBoltSub(name, btn) {
   document.querySelectorAll('#bolt .sub-panel').forEach(p => p.classList.remove('active'));
@@ -548,11 +647,10 @@ function toggleCommissionMode() {
 }
 
 /* ============================================================
-   FUEL INTELLIGENCE HELPERS
+   FUEL INTELLIGENCE
 ============================================================ */
-// Learned avg km/L from all bolt days that have km + litres
 function avgKmPerLitre() {
-  const valid = db.bolt.filter(d =>
+  const valid = active('bolt').filter(d =>
     d.kmStart != null && d.kmEnd != null && d.litres != null &&
     (d.kmEnd - d.kmStart) > 0 && d.litres > 0
   );
@@ -561,43 +659,36 @@ function avgKmPerLitre() {
   const totalL = valid.reduce((s,d) => s + d.litres, 0);
   return totalL > 0 ? totalKm / totalL : null;
 }
-// Average fuel price per litre from purchases
 function avgPricePerLitre() {
-  const valid = db.fuel.filter(f => f.litres > 0 && f.cost > 0);
+  const valid = active('fuel').filter(f => f.litres > 0 && f.cost > 0);
   if (!valid.length) return null;
   const totalL = valid.reduce((s,f) => s + f.litres, 0);
   const totalC = valid.reduce((s,f) => s + f.cost, 0);
   return totalL > 0 ? totalC / totalL : null;
 }
-// Fuel balance (bought − used)
 function fuelBalance() {
-  const bought = db.fuel.reduce((s,f) => s + (f.litres || 0), 0);
-  const used = db.bolt.reduce((s,d) => s + (d.litres || 0), 0);
+  const bought = active('fuel').reduce((s,f) => s + (f.litres || 0), 0);
+  const used = active('bolt').reduce((s,d) => s + (d.litres || 0), 0);
   return bought - used;
 }
-// Commission applicable to a specific date (from daily or range records)
 function commissionForDate(dateStr) {
   let total = 0;
-  db.commission.forEach(c => {
-    if (c.mode === 'daily' && c.date === dateStr) {
-      total += c.amount;
-    } else if (c.mode === 'range' && c.from && c.to) {
-      if (dateStr >= c.from && dateStr <= c.to) {
-        const days = daysBetween(c.from, c.to) + 1;
-        total += c.amount / days;
-      }
+  active('commission').forEach(c => {
+    if (c.mode === 'daily' && c.date === dateStr) total += c.amount;
+    else if (c.mode === 'range' && c.from && c.to && dateStr >= c.from && dateStr <= c.to) {
+      const days = daysBetween(c.from, c.to) + 1;
+      total += c.amount / days;
     }
   });
   return total;
+}
+function repairsForDate(dateStr) {
+  return active('repair').filter(r => r.date === dateStr).reduce((s,r) => s + r.amount, 0);
 }
 function daysBetween(a, b) {
   const da = new Date(a + 'T00:00:00');
   const db_ = new Date(b + 'T00:00:00');
   return Math.round((db_ - da) / (1000*60*60*24));
-}
-// Repairs applicable to a date
-function repairsForDate(dateStr) {
-  return db.repair.filter(r => r.date === dateStr).reduce((s,r) => s + r.amount, 0);
 }
 
 /* ============================================================
@@ -611,11 +702,9 @@ function addMining() {
   const other = parseFloat(document.getElementById('mOther').value) || 0;
   const sellRaw = document.getElementById('mSell').value;
   const sell = sellRaw === '' ? null : parseFloat(sellRaw);
-
   if (!qty || !cost) return toast('Enter quantity and purchase cost');
-
   const profit = sell !== null ? sell - cost - other : null;
-  db.mining.push({ id: uid(), date, type, qty, cost, other, sell, profit });
+  db.mining.push({ id: uid(), date, type, qty, cost, other, sell, profit, updatedAt: nowISO(), deleted: false });
   save(); renderMining(); clearMiningForm();
   toast('Mining transaction added');
 }
@@ -624,12 +713,12 @@ function clearMiningForm() {
 }
 function deleteMining(id) {
   if (!confirm('Delete this transaction?')) return;
-  db.mining = db.mining.filter(x => x.id !== id); save(); renderMining(); renderDashboard();
+  markDeleted('mining', id); save(); renderMining(); renderDashboard();
 }
 function renderMining() {
   const tb = document.querySelector('#miningTable tbody');
   tb.innerHTML = '';
-  const rows = [...db.mining].sort((a,b) => b.date.localeCompare(a.date));
+  const rows = [...active('mining')].sort((a,b) => b.date.localeCompare(a.date));
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">No records yet</td></tr>'; return; }
   rows.forEach(r => {
     const tr = document.createElement('tr');
@@ -656,53 +745,33 @@ function addBoltDay() {
   const litresRaw = document.getElementById('bLitres').value;
   const other = parseFloat(document.getElementById('bOther').value) || 0;
   const tripsRaw = document.getElementById('bTrips').value.trim();
-
   if (!tripsRaw) return toast('Enter trip incomes');
   const trips = tripsRaw.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
   if (!trips.length) return toast('Invalid trips');
   const income = trips.reduce((a,b) => a+b, 0);
 
-  // Determine km
   let km = null;
-  if (!isNaN(kmStart) && !isNaN(kmEnd) && kmEnd >= kmStart) {
-    km = kmEnd - kmStart;
-  }
+  if (!isNaN(kmStart) && !isNaN(kmEnd) && kmEnd >= kmStart) km = kmEnd - kmStart;
 
-  // Determine litres used (auto or manual)
   let litres = null;
-  if (litresRaw !== '' && !isNaN(parseFloat(litresRaw))) {
-    litres = parseFloat(litresRaw);
-  } else if (km !== null) {
+  if (litresRaw !== '' && !isNaN(parseFloat(litresRaw))) litres = parseFloat(litresRaw);
+  else if (km !== null) {
     const avg = avgKmPerLitre();
-    if (avg && avg > 0) {
-      litres = km / avg;
-      litres = Math.round(litres * 100) / 100;
-    }
+    if (avg && avg > 0) litres = Math.round((km / avg) * 100) / 100;
   }
 
-  // Fuel cost for the day = litres used × avg price per litre
   const pricePerL = avgPricePerLitre();
   const fuelCost = (litres !== null && pricePerL) ? litres * pricePerL : 0;
-
-  // Commission for this date (from commission records)
   const commission = commissionForDate(date);
-  // Repairs for this date
   const repair = repairsForDate(date);
-
   const profit = income - fuelCost - commission - other - repair;
 
   db.bolt.push({
-    id: uid(), date,
-    trips, income,
+    id: uid(), date, trips, income,
     kmStart: isNaN(kmStart) ? null : kmStart,
     kmEnd: isNaN(kmEnd) ? null : kmEnd,
-    km,
-    litres,
-    fuelCost,
-    other,
-    commission,
-    repair,
-    profit
+    km, litres, fuelCost, other, commission, repair, profit,
+    updatedAt: nowISO(), deleted: false
   });
   save(); renderBolt(); clearBoltForm();
   toast('Bolt day added');
@@ -712,13 +781,13 @@ function clearBoltForm() {
 }
 function deleteBoltDay(id) {
   if (!confirm('Delete this day?')) return;
-  db.bolt = db.bolt.filter(x => x.id !== id); save(); renderBolt(); renderDashboard();
+  markDeleted('bolt', id); save(); renderBolt(); renderDashboard();
 }
 function renderBolt() {
   const tb = document.querySelector('#boltTable tbody');
   tb.innerHTML = '';
-  const rows = [...db.bolt].sort((a,b) => b.date.localeCompare(a.date));
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="9" class="empty">No records yet</td></tr>'; }
+  const rows = [...active('bolt')].sort((a,b) => b.date.localeCompare(a.date));
+  if (!rows.length) tb.innerHTML = '<tr><td colspan="9" class="empty">No records yet</td></tr>';
   else rows.forEach(r => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -734,9 +803,7 @@ function renderBolt() {
     `;
     tb.appendChild(tr);
   });
-  renderFuelSection();
-  renderCommissionTable();
-  renderRepairTable();
+  renderFuelSection(); renderCommissionTable(); renderRepairTable();
 }
 
 /* ============================================================
@@ -749,32 +816,31 @@ function addFuel() {
   const odo = parseFloat(document.getElementById('fOdo').value);
   const note = document.getElementById('fNote').value.trim();
   if (!litres || !cost) return toast('Enter litres and cost');
-  db.fuel.push({ id: uid(), date, litres, cost, odo: isNaN(odo) ? null : odo, note });
+  db.fuel.push({ id: uid(), date, litres, cost, odo: isNaN(odo) ? null : odo, note, updatedAt: nowISO(), deleted: false });
   save(); renderBolt(); renderDashboard();
   ['fLitres','fCost','fOdo','fNote'].forEach(id => document.getElementById(id).value = '');
   toast('Fuel purchase added');
 }
 function deleteFuel(id) {
   if (!confirm('Delete this purchase?')) return;
-  db.fuel = db.fuel.filter(x => x.id !== id); save(); renderBolt(); renderDashboard();
+  markDeleted('fuel', id); save(); renderBolt(); renderDashboard();
 }
 function renderFuelSection() {
-  // Balance card
-  const bought = db.fuel.reduce((s,f) => s + f.litres, 0);
-  const used = db.bolt.reduce((s,d) => s + (d.litres || 0), 0);
+  const bought = active('fuel').reduce((s,f) => s + f.litres, 0);
+  const used = active('bolt').reduce((s,d) => s + (d.litres || 0), 0);
   const balance = bought - used;
   const avg = avgKmPerLitre();
   const pricePerL = avgPricePerLitre();
   const kmLeft = avg ? balance * avg : null;
   const avgDailyKm = (() => {
-    const recent = db.bolt.filter(d => d.km != null).slice(-7);
+    const recent = active('bolt').filter(d => d.km != null).slice(-7);
     if (!recent.length) return null;
     return recent.reduce((s,d) => s + d.km, 0) / recent.length;
   })();
   const daysLeft = (avgDailyKm && kmLeft != null) ? kmLeft / avgDailyKm : null;
-
   const pct = bought > 0 ? Math.max(0, Math.min(100, (balance / bought) * 100)) : 0;
-  document.getElementById('fuelBalanceCard').innerHTML = `
+
+  const html = `
     <div class="stat"><div class="label">Fuel Balance</div><div class="value">${balance.toFixed(2)} L</div></div>
     <div class="fuel-bar"><div class="fuel-fill" style="width:${pct}%"></div></div>
     <div class="fuel-info"><span>Total bought: ${bought.toFixed(2)} L</span><span>Total used: ${used.toFixed(2)} L</span></div>
@@ -785,14 +851,15 @@ function renderFuelSection() {
       <div class="stat"><div class="label">Est. Days Left</div><div class="value">${daysLeft != null ? daysLeft.toFixed(1) : '—'}</div></div>
     </div>
   `;
+  const fbc = document.getElementById('fuelBalanceCard');
+  const fsc = document.getElementById('fuelStatusCard');
+  if (fbc) fbc.innerHTML = html;
+  if (fsc) fsc.innerHTML = html;
 
-  // Also mirror into dashboard fuel card
-  document.getElementById('fuelStatusCard').innerHTML = document.getElementById('fuelBalanceCard').innerHTML;
-
-  // Table
   const tb = document.querySelector('#fuelTable tbody');
+  if (!tb) return;
   tb.innerHTML = '';
-  const rows = [...db.fuel].sort((a,b) => b.date.localeCompare(a.date));
+  const rows = [...active('fuel')].sort((a,b) => b.date.localeCompare(a.date));
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">No fuel purchases yet</td></tr>'; return; }
   rows.forEach(f => {
     const tr = document.createElement('tr');
@@ -817,41 +884,39 @@ function addCommission() {
   const amount = parseFloat(document.getElementById('cAmount').value) || 0;
   const note = document.getElementById('cNote').value.trim();
   if (!amount) return toast('Enter commission amount');
-
   if (mode === 'daily') {
     const date = document.getElementById('cDate').value || today();
-    db.commission.push({ id: uid(), mode: 'daily', date, amount, note });
+    db.commission.push({ id: uid(), mode: 'daily', date, amount, note, updatedAt: nowISO(), deleted: false });
   } else {
     const from = document.getElementById('cFrom').value;
     const to = document.getElementById('cTo').value;
     if (!from || !to) return toast('Enter From and To dates');
     if (to < from) return toast('To date must be after From');
-    db.commission.push({ id: uid(), mode: 'range', from, to, amount, note });
+    db.commission.push({ id: uid(), mode: 'range', from, to, amount, note, updatedAt: nowISO(), deleted: false });
   }
-  save();
-  // Recalculate commission on existing bolt days for affected dates
-  recalcBoltCommissions();
-  renderBolt(); renderDashboard();
+  save(); recalcBoltCommissions(); renderBolt(); renderDashboard();
   ['cAmount','cNote'].forEach(id => document.getElementById(id).value = '');
   toast('Commission added');
 }
 function deleteCommission(id) {
   if (!confirm('Delete this commission?')) return;
-  db.commission = db.commission.filter(x => x.id !== id);
+  markDeleted('commission', id);
   save(); recalcBoltCommissions(); renderBolt(); renderDashboard();
 }
 function recalcBoltCommissions() {
-  db.bolt.forEach(d => {
+  active('bolt').forEach(d => {
     d.commission = commissionForDate(d.date);
     d.repair = repairsForDate(d.date);
     d.profit = d.income - (d.fuelCost || 0) - d.commission - d.other - d.repair;
+    d.updatedAt = nowISO();
   });
   save();
 }
 function renderCommissionTable() {
   const tb = document.querySelector('#commissionTable tbody');
+  if (!tb) return;
   tb.innerHTML = '';
-  const rows = [...db.commission].sort((a,b) => (b.date||b.from||'').localeCompare(a.date||a.from||''));
+  const rows = [...active('commission')].sort((a,b) => (b.date||b.from||'').localeCompare(a.date||a.from||''));
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">No commission records yet</td></tr>'; return; }
   rows.forEach(c => {
     const tr = document.createElement('tr');
@@ -888,20 +953,21 @@ function addRepair() {
   const type = document.getElementById('rType').value;
   const note = document.getElementById('rNote').value.trim();
   if (!amount) return toast('Enter amount');
-  db.repair.push({ id: uid(), date, amount, type, note });
+  db.repair.push({ id: uid(), date, amount, type, note, updatedAt: nowISO(), deleted: false });
   save(); recalcBoltCommissions(); renderBolt(); renderDashboard();
   ['rCost','rNote'].forEach(id => document.getElementById(id).value = '');
   toast('Repair added');
 }
 function deleteRepair(id) {
   if (!confirm('Delete this repair?')) return;
-  db.repair = db.repair.filter(x => x.id !== id);
+  markDeleted('repair', id);
   save(); recalcBoltCommissions(); renderBolt(); renderDashboard();
 }
 function renderRepairTable() {
   const tb = document.querySelector('#repairTable tbody');
+  if (!tb) return;
   tb.innerHTML = '';
-  const rows = [...db.repair].sort((a,b) => b.date.localeCompare(a.date));
+  const rows = [...active('repair')].sort((a,b) => b.date.localeCompare(a.date));
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">No repair records yet</td></tr>'; return; }
   rows.forEach(r => {
     const tr = document.createElement('tr');
@@ -926,7 +992,7 @@ function addBet() {
   if (isNaN(payout)) payout = status === 'Won' ? stake * odds : 0;
   if (!stake) return toast('Enter stake amount');
   const pl = status === 'Pending' ? 0 : payout - stake;
-  db.betting.push({ id: uid(), date, stake, odds, status, payout, pl });
+  db.betting.push({ id: uid(), date, stake, odds, status, payout, pl, updatedAt: nowISO(), deleted: false });
   save(); renderBetting(); clearBetForm();
   toast('Ticket added');
 }
@@ -935,12 +1001,12 @@ function clearBetForm() {
 }
 function deleteBet(id) {
   if (!confirm('Delete this ticket?')) return;
-  db.betting = db.betting.filter(x => x.id !== id); save(); renderBetting(); renderDashboard();
+  markDeleted('betting', id); save(); renderBetting(); renderDashboard();
 }
 function renderBetting() {
   const tb = document.querySelector('#betTable tbody');
   tb.innerHTML = '';
-  const rows = [...db.betting].sort((a,b) => b.date.localeCompare(a.date));
+  const rows = [...active('betting')].sort((a,b) => b.date.localeCompare(a.date));
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">No records yet</td></tr>'; return; }
   rows.forEach(r => {
     const tr = document.createElement('tr');
@@ -968,7 +1034,7 @@ function addIncome() {
   const source = document.getElementById('iSource').value.trim();
   const notes = document.getElementById('iNotes').value.trim();
   if (!amount) return toast('Enter amount');
-  db.income.push({ id: uid(), date, amount, category, source, notes });
+  db.income.push({ id: uid(), date, amount, category, source, notes, updatedAt: nowISO(), deleted: false });
   save(); renderIncome(); clearIncomeForm();
   toast('Income added');
 }
@@ -977,12 +1043,12 @@ function clearIncomeForm() {
 }
 function deleteIncome(id) {
   if (!confirm('Delete this income record?')) return;
-  db.income = db.income.filter(x => x.id !== id); save(); renderIncome(); renderDashboard();
+  markDeleted('income', id); save(); renderIncome(); renderDashboard();
 }
 function renderIncome() {
   const tb = document.querySelector('#incomeTable tbody');
   tb.innerHTML = '';
-  const rows = [...db.income].sort((a,b) => b.date.localeCompare(a.date));
+  const rows = [...active('income')].sort((a,b) => b.date.localeCompare(a.date));
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">No income yet</td></tr>'; return; }
   rows.forEach(r => {
     const tr = document.createElement('tr');
@@ -1007,7 +1073,7 @@ function addExpense() {
   const amount = parseFloat(document.getElementById('eAmount').value) || 0;
   const cat = document.getElementById('eCat').value;
   if (!desc || !amount) return toast('Enter description and amount');
-  db.expenses.push({ id: uid(), date, desc, amount, cat });
+  db.expenses.push({ id: uid(), date, desc, amount, cat, updatedAt: nowISO(), deleted: false });
   save(); renderExpenses(); clearExpForm();
   toast('Expense added');
 }
@@ -1016,12 +1082,12 @@ function clearExpForm() {
 }
 function deleteExpense(id) {
   if (!confirm('Delete this expense?')) return;
-  db.expenses = db.expenses.filter(x => x.id !== id); save(); renderExpenses(); renderDashboard();
+  markDeleted('expenses', id); save(); renderExpenses(); renderDashboard();
 }
 function renderExpenses() {
   const tb = document.querySelector('#expTable tbody');
   tb.innerHTML = '';
-  const rows = [...db.expenses].sort((a,b) => b.date.localeCompare(a.date));
+  const rows = [...active('expenses')].sort((a,b) => b.date.localeCompare(a.date));
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">No records yet</td></tr>'; return; }
   rows.forEach(r => {
     const tr = document.createElement('tr');
@@ -1061,15 +1127,14 @@ function monthRange(dateStr) {
    AGGREGATION
 ============================================================ */
 function aggregate(start, end) {
-  const mining = db.mining.filter(r => inRange(r.date, start, end));
-  const bolt = db.bolt.filter(r => inRange(r.date, start, end));
-  const betting = db.betting.filter(r => inRange(r.date, start, end));
-  const expenses = db.expenses.filter(r => inRange(r.date, start, end));
-  const income = db.income.filter(r => inRange(r.date, start, end));
+  const mining = active('mining').filter(r => inRange(r.date, start, end));
+  const bolt = active('bolt').filter(r => inRange(r.date, start, end));
+  const betting = active('betting').filter(r => inRange(r.date, start, end));
+  const expenses = active('expenses').filter(r => inRange(r.date, start, end));
+  const income = active('income').filter(r => inRange(r.date, start, end));
 
   const miningInvestment = mining.reduce((s,r) => s + r.cost + r.other, 0);
   const miningProfit = mining.reduce((s,r) => s + (r.profit || 0), 0);
-
   const boltIncome = bolt.reduce((s,r) => s + r.income, 0);
   const boltFuelCost = bolt.reduce((s,r) => s + (r.fuelCost || 0), 0);
   const boltCommission = bolt.reduce((s,r) => s + (r.commission || 0), 0);
@@ -1077,14 +1142,11 @@ function aggregate(start, end) {
   const boltOther = bolt.reduce((s,r) => s + (r.other || 0), 0);
   const boltExpenses = boltFuelCost + boltCommission + boltRepair + boltOther;
   const boltProfit = bolt.reduce((s,r) => s + r.profit, 0);
-
   const betStake = betting.reduce((s,r) => s + r.stake, 0);
   const betPayout = betting.reduce((s,r) => s + r.payout, 0);
   const betPL = betting.reduce((s,r) => s + r.pl, 0);
-
   const personalExpenses = expenses.reduce((s,r) => s + r.amount, 0);
   const personalIncome = income.reduce((s,r) => s + r.amount, 0);
-
   const totalIncome = boltIncome + betPayout + miningProfit + personalIncome;
   const totalExpenses = boltExpenses + personalExpenses + betStake;
   const net = totalIncome - totalExpenses;
@@ -1111,7 +1173,6 @@ function renderDashboard() {
   const date = document.getElementById('dashDate').value || today();
   const period = document.getElementById('dashPeriod').value;
   let start, end, label;
-
   if (period === 'daily') { start = end = date; label = `Daily Summary — ${date}`; }
   else if (period === 'weekly') { [start, end] = weekRange(date); label = `Weekly Summary — ${start} to ${end}`; }
   else { [start, end] = monthRange(date); label = `Monthly Summary — ${date.slice(0,7)}`; }
@@ -1130,7 +1191,6 @@ function renderDashboard() {
     <div class="stat"><div class="label">Personal Expenses</div><div class="value neg">₦${fmtInt(a.expenses.total)}</div></div>
   `;
 
-  // Per-business summary table
   const prevStart = addDays(start, -daysBetween(start, end) - 1);
   const prevEnd = addDays(start, -1);
   const p = aggregate(prevStart, prevEnd);
@@ -1157,37 +1217,27 @@ function renderDashboard() {
     row('🎯 Sports', a.betting.payout, a.betting.stake, a.betting.pl, p.betting.pl) +
     row('💰 Personal', a.income.total, a.expenses.total, a.personalNet, p.personalNet);
 
-  // Pie: profit share
-  const pieData = [
-    Math.max(0, a.mining.profit),
-    Math.max(0, a.bolt.profit),
-    Math.max(0, a.betting.pl),
-    Math.max(0, a.personalNet)
-  ];
-  const totalPie = pieData.reduce((s,x) => s+x, 0) || 1;
-  const pieLabels = ['Mining', 'Bolt', 'Sports', 'Personal'];
-  const pieColors = ['#22d3ee', '#22c55e', '#eab308', '#a855f7'];
+  const pieData = [Math.max(0,a.mining.profit), Math.max(0,a.bolt.profit), Math.max(0,a.betting.pl), Math.max(0,a.personalNet)];
+  const totalPie = pieData.reduce((s,x)=>s+x,0) || 1;
+  const pieLabels = ['Mining','Bolt','Sports','Personal'];
+  const pieColors = ['#22d3ee','#22c55e','#eab308','#a855f7'];
   if (pieChart) pieChart.destroy();
   pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
     type: 'pie',
     data: {
-      labels: pieLabels.map((l,i) => `${l} (${(pieData[i]/totalPie*100).toFixed(0)}%)`),
+      labels: pieLabels.map((l,i)=>`${l} (${(pieData[i]/totalPie*100).toFixed(0)}%)`),
       datasets: [{ data: pieData, backgroundColor: pieColors, borderColor: '#0f172a', borderWidth: 2 }]
     },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#e2e8f0' } } }
-    }
+    options: { responsive: true, plugins: { legend: { labels: { color: '#e2e8f0' } } } }
   });
 
-  // Bar: income vs expenses vs profit
   if (barChart) barChart.destroy();
   barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
     type: 'bar',
     data: {
-      labels: ['Mining', 'Bolt', 'Sports', 'Personal'],
+      labels: ['Mining','Bolt','Sports','Personal'],
       datasets: [
-        { label: 'Income', data: [a.mining.profit + a.mining.investment, a.bolt.income, a.betting.payout, a.income.total], backgroundColor: '#22c55e' },
+        { label: 'Income', data: [a.mining.profit+a.mining.investment, a.bolt.income, a.betting.payout, a.income.total], backgroundColor: '#22c55e' },
         { label: 'Expenses', data: [a.mining.investment, a.bolt.expenses, a.betting.stake, a.expenses.total], backgroundColor: '#ef4444' },
         { label: 'Profit', data: [a.mining.profit, a.bolt.profit, a.betting.pl, a.personalNet], backgroundColor: '#22d3ee' }
       ]
@@ -1202,7 +1252,6 @@ function renderDashboard() {
     }
   });
 
-  // 7-day trend per business
   const days = [];
   for (let i = 6; i >= 0; i--) days.push(addDays(today(), -i));
   const series = { mining: [], bolt: [], betting: [], personal: [] };
@@ -1235,18 +1284,16 @@ function renderDashboard() {
     }
   });
 
-  // Fuel card (mirror)
   renderFuelSection();
 
-  // Monthly projection
   const [ms, me] = monthRange(today());
   const ma = aggregate(ms, me);
   const daysWithData = new Set([
-    ...db.mining.filter(r => inRange(r.date, ms, me)).map(r => r.date),
-    ...db.bolt.filter(r => inRange(r.date, ms, me)).map(r => r.date),
-    ...db.betting.filter(r => inRange(r.date, ms, me)).map(r => r.date),
-    ...db.expenses.filter(r => inRange(r.date, ms, me)).map(r => r.date),
-    ...db.income.filter(r => inRange(r.date, ms, me)).map(r => r.date)
+    ...active('mining').filter(r => inRange(r.date, ms, me)).map(r => r.date),
+    ...active('bolt').filter(r => inRange(r.date, ms, me)).map(r => r.date),
+    ...active('betting').filter(r => inRange(r.date, ms, me)).map(r => r.date),
+    ...active('expenses').filter(r => inRange(r.date, ms, me)).map(r => r.date),
+    ...active('income').filter(r => inRange(r.date, ms, me)).map(r => r.date)
   ]).size || 1;
   const projIncome = (ma.totalIncome / daysWithData) * 30;
   const projExpenses = (ma.totalExpenses / daysWithData) * 30;
@@ -1258,11 +1305,10 @@ function renderDashboard() {
     <div class="stat"><div class="label">Days Recorded</div><div class="value">${daysWithData}</div></div>
   `;
 
-  // AI insights
-  renderInsights(a, p);
+  renderInsights(a);
 }
 
-function renderInsights(a, p) {
+function renderInsights(a) {
   const ins = [];
   const biz = [
     { name: 'Mining', profit: a.mining.profit },
@@ -1270,18 +1316,9 @@ function renderInsights(a, p) {
     { name: 'Sports Investment', profit: a.betting.pl },
     { name: 'Personal', profit: a.personalNet }
   ].sort((x,y) => y.profit - x.profit);
-
   if (biz[0].profit > 0) ins.push(`✅ Best performer: <strong>${biz[0].name}</strong> (₦${fmtInt(biz[0].profit)})`);
   if (biz[biz.length-1].profit < 0) ins.push(`⚠️ Losing money on: <strong>${biz[biz.length-1].name}</strong> (₦${fmtInt(biz[biz.length-1].profit)})`);
-
-  // Bolt-specific insights
   if (a.bolt.count > 0) {
-    if (p.bolt.profit !== 0) {
-      const change = ((a.bolt.profit - p.bolt.profit) / Math.abs(p.bolt.profit)) * 100;
-      if (Math.abs(change) > 5) {
-        ins.push(`🚗 Bolt profit ${change > 0 ? '↑' : '↓'}${Math.abs(change).toFixed(0)}% vs previous period`);
-      }
-    }
     if (a.bolt.repair > 0) {
       const pct = (a.bolt.repair / (a.bolt.expenses || 1)) * 100;
       ins.push(`🔧 Repairs/vehicle papers: ₦${fmtInt(a.bolt.repair)} (${pct.toFixed(0)}% of Bolt expenses)`);
@@ -1291,44 +1328,31 @@ function renderInsights(a, p) {
       ins.push(`💼 Bolt commission: ₦${fmtInt(a.bolt.commission)} (${pct.toFixed(1)}% of trip income)`);
     }
   }
-
-  // Fuel insights
   const bal = fuelBalance();
   const avg = avgKmPerLitre();
   const price = avgPricePerLitre();
-  if (bal !== 0 || db.fuel.length > 0) {
+  if (bal !== 0 || active('fuel').length > 0) {
     const kmLeft = avg ? bal * avg : null;
     ins.push(`⛽ Fuel balance: <strong>${bal.toFixed(1)} L</strong>${kmLeft != null ? ` ≈ ${kmLeft.toFixed(0)} km` : ''}${price ? ` (avg ₦${price.toFixed(0)}/L)` : ''}`);
-    if (bal < 5 && db.fuel.length > 0) ins.push(`⚠️ Fuel running low — consider refilling soon`);
+    if (bal < 5 && active('fuel').length > 0) ins.push(`⚠️ Fuel running low — consider refilling soon`);
   }
-
-  // Sports insights
-  if (a.betting.count > 0) {
-    const won = db.betting.filter(b => inRange(b.date, a._start || '', a._end || '') && b.status === 'Won').length;
-    const decided = db.betting.filter(b => b.status !== 'Pending').length;
-    if (decided > 0) {
-      const rate = (db.betting.filter(b => b.status === 'Won').length / decided) * 100;
-      ins.push(`🎯 Sports win rate: ${rate.toFixed(0)}% (${db.betting.filter(b => b.status === 'Won').length}/${decided})`);
-    }
+  const decided = active('betting').filter(b => b.status !== 'Pending');
+  if (decided.length > 0) {
+    const won = active('betting').filter(b => b.status === 'Won').length;
+    const rate = (won / decided.length) * 100;
+    ins.push(`🎯 Sports win rate: ${rate.toFixed(0)}% (${won}/${decided.length})`);
   }
-
-  // Mining
   if (a.mining.count > 0 && a.mining.investment > 0) {
     const margin = (a.mining.profit / a.mining.investment) * 100;
     ins.push(`⛏️ Mining margin: ${margin.toFixed(0)}% on ₦${fmtInt(a.mining.investment)} invested`);
   }
-
-  // Personal
   if (a.totalIncome > 0) {
     const pct = (a.expenses.total / a.totalIncome) * 100;
     if (pct > 50) ins.push(`⚠️ Personal expenses are ${pct.toFixed(0)}% of total income (over 50%)`);
     else if (pct > 30) ins.push(`💡 Personal expenses are ${pct.toFixed(0)}% of total income`);
   }
-
-  // Reinvestment
   const reinvest = a.net * 0.5;
   if (reinvest > 0) ins.push(`💰 Safe to reinvest (50% rule): <strong>₦${fmtInt(reinvest)}</strong>`);
-
   if (!ins.length) ins.push('Add real transactions to see insights.');
   document.getElementById('insights').innerHTML = ins.map(i => `<p style="margin:6px 0">${i}</p>`).join('');
 }
@@ -1338,25 +1362,30 @@ function renderInsights(a, p) {
 ============================================================ */
 function renderDataStats() {
   document.getElementById('dataStats').innerHTML = `
-    <div class="stat"><div class="label">Mining</div><div class="value">${db.mining.length}</div></div>
-    <div class="stat"><div class="label">Bolt Days</div><div class="value">${db.bolt.length}</div></div>
-    <div class="stat"><div class="label">Fuel Purchases</div><div class="value">${db.fuel.length}</div></div>
-    <div class="stat"><div class="label">Commissions</div><div class="value">${db.commission.length}</div></div>
-    <div class="stat"><div class="label">Repairs</div><div class="value">${db.repair.length}</div></div>
-    <div class="stat"><div class="label">Sports Tickets</div><div class="value">${db.betting.length}</div></div>
-    <div class="stat"><div class="label">Personal Income</div><div class="value">${db.income.length}</div></div>
-    <div class="stat"><div class="label">Personal Expenses</div><div class="value">${db.expenses.length}</div></div>
+    <div class="stat"><div class="label">Mining</div><div class="value">${active('mining').length}</div></div>
+    <div class="stat"><div class="label">Bolt Days</div><div class="value">${active('bolt').length}</div></div>
+    <div class="stat"><div class="label">Fuel Purchases</div><div class="value">${active('fuel').length}</div></div>
+    <div class="stat"><div class="label">Commissions</div><div class="value">${active('commission').length}</div></div>
+    <div class="stat"><div class="label">Repairs</div><div class="value">${active('repair').length}</div></div>
+    <div class="stat"><div class="label">Sports Tickets</div><div class="value">${active('betting').length}</div></div>
+    <div class="stat"><div class="label">Personal Income</div><div class="value">${active('income').length}</div></div>
+    <div class="stat"><div class="label">Personal Expenses</div><div class="value">${active('expenses').length}</div></div>
   `;
 }
 
 function exportData() {
-  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  // Strip token-like things; include only data tables
+  const clean = {};
+  ['mining','bolt','betting','expenses','income','fuel','commission','repair'].forEach(k => clean[k] = db[k]);
+  const blob = new Blob([JSON.stringify(clean, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = `finance-backup-${today()}.json`;
   a.click();
   URL.revokeObjectURL(url);
+  localStorage.setItem(BACKUP_KEY, nowISO());
+  hideBackupReminder();
   toast('Backup downloaded');
 }
 
@@ -1379,6 +1408,7 @@ function importData(evt) {
         commission: data.commission || [],
         repair: data.repair || []
       };
+      migrateAll();
       save(); renderAll();
       toast('Backup restored');
     } catch(err) { alert('Invalid backup file'); }
@@ -1395,15 +1425,256 @@ function clearAll() {
 }
 
 /* ============================================================
+   GITHUB SYNC
+============================================================ */
+const FILE_PATH = 'finance-data.json';
+const API_BASE = 'https://api.github.com';
+
+function logSync(msg) {
+  const log = document.getElementById('syncLog');
+  if (!log) return;
+  const arr = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+  arr.unshift({ t: nowISO(), m: msg });
+  const trimmed = arr.slice(0, 50);
+  localStorage.setItem(LOG_KEY, JSON.stringify(trimmed));
+  renderSyncLog();
+}
+function renderSyncLog() {
+  const log = document.getElementById('syncLog');
+  if (!log) return;
+  const arr = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+  log.innerHTML = arr.map(e => {
+    const time = new Date(e.t).toLocaleTimeString();
+    return `<div class="log-entry">${time} — ${e.m}</div>`;
+  }).join('') || '<div class="muted">No activity yet</div>';
+}
+
+function renderSyncUI() {
+  const dot = document.getElementById('syncStatusDot');
+  const txt = document.getElementById('syncStatusText');
+  if (!dot) return;
+  if (syncState.connected) {
+    dot.className = 'status-dot on';
+    txt.textContent = `Connected to ${syncState.user}/${syncState.repo}` + (syncState.lastSync ? ` · Last sync: ${new Date(syncState.lastSync).toLocaleString()}` : '');
+  } else {
+    dot.className = 'status-dot off';
+    txt.textContent = 'Not connected';
+  }
+  document.getElementById('syncPending').textContent = 'Pending changes: ' + (syncState.pendingPush ? '1 (will push soon)' : '0');
+  // fill fields
+  if (document.getElementById('syncUser') && !document.getElementById('syncUser').value) {
+    document.getElementById('syncUser').value = syncState.user || '';
+    document.getElementById('syncRepo').value = syncState.repo || '';
+    document.getElementById('syncBranch').value = syncState.branch || 'main';
+    if (syncState.token) document.getElementById('syncToken').value = syncState.token;
+  }
+  renderSyncLog();
+  checkTokenAge();
+}
+
+function checkTokenAge() {
+  const d = localStorage.getItem('biz_finance_token_date');
+  const banner = document.getElementById('tokenWarning');
+  if (!banner) return;
+  if (!d || !syncState.connected) { banner.classList.remove('show'); return; }
+  const days = (Date.now() - new Date(d).getTime()) / 86400000;
+  banner.classList.toggle('show', days > 80);
+}
+
+function syncConnect() {
+  const user = document.getElementById('syncUser').value.trim();
+  const repo = document.getElementById('syncRepo').value.trim();
+  const branch = document.getElementById('syncBranch').value.trim() || 'main';
+  const token = document.getElementById('syncToken').value.trim();
+  const tokenDate = document.getElementById('syncTokenDate').value;
+  if (!user || !repo || !token) return toast('Fill all fields');
+  syncState.connected = true;
+  syncState.user = user; syncState.repo = repo; syncState.branch = branch; syncState.token = token;
+  saveSync();
+  if (tokenDate) localStorage.setItem('biz_finance_token_date', tokenDate);
+  else localStorage.setItem('biz_finance_token_date', today());
+  logSync('🔗 Connected to ' + user + '/' + repo);
+  renderSyncUI();
+  toast('Connected');
+  syncPull().catch(() => {});
+}
+
+function syncDisconnect() {
+  if (!confirm('Disconnect GitHub sync? Your token will be removed from this device.')) return;
+  syncState = { connected: false, user: '', repo: '', branch: 'main', token: '', lastSync: null, lastSha: null, pendingPush: false };
+  saveSync();
+  localStorage.removeItem('biz_finance_token_date');
+  ['syncUser','syncRepo','syncToken'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  logSync('🔌 Disconnected');
+  renderSyncUI();
+  toast('Disconnected');
+}
+
+function schedulePush() {
+  if (!syncState.connected || !syncState.token) return;
+  syncState.pendingPush = true;
+  saveSync();
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => { syncPush().catch(() => {}); }, 3000);
+}
+
+function ghHeaders() {
+  return {
+    'Authorization': 'Bearer ' + syncState.token,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+}
+
+async function ghGetFile() {
+  const url = `${API_BASE}/repos/${syncState.user}/${syncState.repo}/contents/${FILE_PATH}?ref=${encodeURIComponent(syncState.branch)}`;
+  const res = await fetch(url, { headers: ghHeaders() });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error('GitHub GET ' + res.status + ': ' + t.slice(0, 200));
+  }
+  const j = await res.json();
+  const content = atob(j.content.replace(/\n/g, ''));
+  return { sha: j.sha, data: JSON.parse(content) };
+}
+
+async function ghPutFile(fileData) {
+  const shaInfo = await ghGetFile();
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(fileData, null, 2))));
+  const body = {
+    message: 'Sync ' + nowISO(),
+    content,
+    branch: syncState.branch
+  };
+  if (shaInfo && shaInfo.sha) body.sha = shaInfo.sha;
+  const url = `${API_BASE}/repos/${syncState.user}/${syncState.repo}/contents/${FILE_PATH}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error('GitHub PUT ' + res.status + ': ' + t.slice(0, 200));
+  }
+  return res.json();
+}
+
+async function syncPush() {
+  if (!syncState.connected || !syncState.token) return toast('Not connected');
+  syncState.pendingPush = false;
+  saveSync();
+  try {
+    const payload = {
+      version: 1,
+      updatedAt: nowISO(),
+      device: 'web',
+      data: {
+        mining: db.mining, bolt: db.bolt, betting: db.betting,
+        expenses: db.expenses, income: db.income,
+        fuel: db.fuel, commission: db.commission, repair: db.repair
+      }
+    };
+    const r = await ghPutFile(payload);
+    syncState.lastSync = nowISO();
+    syncState.lastSha = r.content.sha;
+    saveSync();
+    logSync('⬆️ Pushed to cloud');
+    renderSyncUI();
+    toast('Pushed');
+  } catch(e) {
+    logSync('❌ Push failed: ' + e.message);
+    syncState.pendingPush = true;
+    saveSync();
+    toast('Push failed (will retry)');
+    throw e;
+  }
+}
+
+async function syncPull() {
+  if (!syncState.connected || !syncState.token) return toast('Not connected');
+  try {
+    const file = await ghGetFile();
+    if (!file) {
+      logSync('ℹ️ No cloud file yet — will create on first push');
+      toast('Cloud file not found');
+      return;
+    }
+    if (!confirm('Pull from cloud and merge? Local changes will be kept unless cloud is newer for the same record.')) return;
+    mergeCloud(file.data.data);
+    save();
+    syncState.lastSync = nowISO();
+    syncState.lastSha = file.sha;
+    saveSync();
+    renderAll(); renderSyncUI();
+    logSync('⬇️ Pulled from cloud');
+    toast('Pulled');
+  } catch(e) {
+    logSync('❌ Pull failed: ' + e.message);
+    toast('Pull failed');
+    throw e;
+  }
+}
+
+function mergeCloud(cloud) {
+  const tables = ['mining','bolt','betting','expenses','income','fuel','commission','repair'];
+  tables.forEach(t => {
+    const cloudArr = cloud[t] || [];
+    cloudArr.forEach(cr => {
+      const lr = db[t].find(x => x.id === cr.id);
+      if (!lr) db[t].push(cr);
+      else {
+        const cT = cr.updatedAt || '';
+        const lT = lr.updatedAt || '';
+        if (cT > lT) {
+          Object.assign(lr, cr);
+        }
+      }
+    });
+  });
+}
+
+async function syncNow() {
+  if (!syncState.connected) return toast('Not connected');
+  try {
+    const file = await ghGetFile();
+    if (file) {
+      if (!confirm('Merge cloud data with local, then push? (newest record wins)')) return;
+      mergeCloud(file.data.data);
+      save();
+    }
+    await syncPush();
+    toast('Synced');
+  } catch(e) {
+    toast('Sync failed');
+  }
+}
+
+/* ============================================================
+   BACKUP REMINDER
+============================================================ */
+function hideBackupReminder() {
+  const b = document.getElementById('backupReminder');
+  if (b) b.classList.remove('show');
+}
+function checkBackupReminder() {
+  const last = localStorage.getItem(BACKUP_KEY);
+  const b = document.getElementById('backupReminder');
+  if (!b) return;
+  if (!last) return;
+  const days = (Date.now() - new Date(last).getTime()) / 86400000;
+  b.classList.toggle('show', days > 7);
+}
+
+/* ============================================================
    INIT
 ============================================================ */
 function renderAll() {
   renderMining(); renderBolt(); renderBetting();
   renderIncome(); renderExpenses();
-  renderFuelSection();
-  renderCommissionTable();
-  renderRepairTable();
-  renderDashboard(); renderDataStats();
+  renderFuelSection(); renderCommissionTable(); renderRepairTable();
+  renderDashboard(); renderDataStats(); renderSyncUI();
 }
 
 function init() {
@@ -1416,7 +1687,16 @@ function init() {
   document.getElementById('dashDate').addEventListener('change', renderDashboard);
   document.getElementById('dashPeriod').addEventListener('change', renderDashboard);
   toggleCommissionMode();
+  checkBackupReminder();
+  checkTokenAge();
   renderAll();
+  // Pull on open if connected
+  if (syncState.connected && syncState.token) {
+    setTimeout(() => { syncPull().catch(() => {}); }, 1000);
+  }
+  window.addEventListener('online', () => {
+    if (syncState.pendingPush && syncState.connected) syncPush().catch(() => {});
+  });
 }
 
 init();
