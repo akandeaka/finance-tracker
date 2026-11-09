@@ -650,16 +650,19 @@ function toggleCommissionMode() {
 /* ============================================================
    FUEL INTELLIGENCE
 ============================================================ */
+// Update this in the FUEL INTELLIGENCE section
 function avgKmPerLitre() {
   const valid = active('bolt').filter(d =>
     d.kmStart != null && d.kmEnd != null && d.litres != null &&
     (d.kmEnd - d.kmStart) > 0 && d.litres > 0
   );
-  if (!valid.length) return null;
+  // If we have real data, use it. If not, default to 10 km/L
+  if (!valid.length) return 10; 
   const totalKm = valid.reduce((s,d) => s + (d.kmEnd - d.kmStart), 0);
   const totalL = valid.reduce((s,d) => s + d.litres, 0);
-  return totalL > 0 ? totalKm / totalL : null;
+  return totalL > 0 ? totalKm / totalL : 10;
 }
+
 function avgPricePerLitre() {
   const valid = active('fuel').filter(f => f.litres > 0 && f.cost > 0);
   if (!valid.length) return null;
@@ -667,31 +670,6 @@ function avgPricePerLitre() {
   const totalC = valid.reduce((s,f) => s + f.cost, 0);
   return totalL > 0 ? totalC / totalL : null;
 }
-function fuelBalance() {
-  const bought = active('fuel').reduce((s,f) => s + (f.litres || 0), 0);
-  const used = active('bolt').reduce((s,d) => s + (d.litres || 0), 0);
-  return bought - used;
-}
-function commissionForDate(dateStr) {
-  let total = 0;
-  active('commission').forEach(c => {
-    if (c.mode === 'daily' && c.date === dateStr) total += c.amount;
-    else if (c.mode === 'range' && c.from && c.to && dateStr >= c.from && dateStr <= c.to) {
-      const days = daysBetween(c.from, c.to) + 1;
-      total += c.amount / days;
-    }
-  });
-  return total;
-}
-function repairsForDate(dateStr) {
-  return active('repair').filter(r => r.date === dateStr).reduce((s,r) => s + r.amount, 0);
-}
-function daysBetween(a, b) {
-  const da = new Date(a + 'T00:00:00');
-  const db_ = new Date(b + 'T00:00:00');
-  return Math.round((db_ - da) / (1000*60*60*24));
-}
-
 /* ============================================================
    MINING
 ============================================================ */
@@ -746,6 +724,7 @@ function addBoltDay() {
   const litresRaw = document.getElementById('bLitres').value;
   const other = parseFloat(document.getElementById('bOther').value) || 0;
   const tripsRaw = document.getElementById('bTrips').value.trim();
+  
   if (!tripsRaw) return toast('Enter trip incomes');
   const trips = tripsRaw.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
   if (!trips.length) return toast('Invalid trips');
@@ -754,17 +733,23 @@ function addBoltDay() {
   let km = null;
   if (!isNaN(kmStart) && !isNaN(kmEnd) && kmEnd >= kmStart) km = kmEnd - kmStart;
 
+  // Auto-calculate litres if left blank based on km
   let litres = null;
-  if (litresRaw !== '' && !isNaN(parseFloat(litresRaw))) litres = parseFloat(litresRaw);
-  else if (km !== null) {
-    const avg = avgKmPerLitre();
-    if (avg && avg > 0) litres = Math.round((km / avg) * 100) / 100;
+  if (litresRaw !== '' && !isNaN(parseFloat(litresRaw))) {
+    litres = parseFloat(litresRaw);
+  } else if (km !== null) {
+    const avg = avgKmPerLitre(); // This will now fallback to 10 if no data
+    litres = Math.round((km / avg) * 100) / 100;
   }
 
   const pricePerL = avgPricePerLitre();
+  // Calculate the cost of the fuel actually used today, not the whole tank
   const fuelCost = (litres !== null && pricePerL) ? litres * pricePerL : 0;
+  
   const commission = commissionForDate(date);
   const repair = repairsForDate(date);
+  
+  // Profit now correctly deducts only the fuel consumed today
   const profit = income - fuelCost - commission - other - repair;
 
   db.bolt.push({
@@ -774,39 +759,10 @@ function addBoltDay() {
     km, litres, fuelCost, other, commission, repair, profit,
     updatedAt: nowISO(), deleted: false
   });
+  
   save(); renderBolt(); clearBoltForm();
-  toast('Bolt day added');
+  toast(`Day added. Used ${litres ? litres.toFixed(2) : 0}L, Cost: ₦${fuelCost.toFixed(0)}`);
 }
-function clearBoltForm() {
-  ['bKmStart','bKmEnd','bLitres','bOther','bTrips'].forEach(id => document.getElementById(id).value = '');
-}
-function deleteBoltDay(id) {
-  if (!confirm('Delete this day?')) return;
-  markDeleted('bolt', id); save(); renderBolt(); renderDashboard();
-}
-function renderBolt() {
-  const tb = document.querySelector('#boltTable tbody');
-  tb.innerHTML = '';
-  const rows = [...active('bolt')].sort((a,b) => b.date.localeCompare(a.date));
-  if (!rows.length) tb.innerHTML = '<tr><td colspan="9" class="empty">No records yet</td></tr>';
-  else rows.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${r.date}</td>
-      <td class="amt">${r.trips.length}</td>
-      <td class="amt">${fmt(r.income)}</td>
-      <td class="amt">${r.km != null ? r.km.toFixed(1) : '—'}</td>
-      <td class="amt">${r.litres != null ? r.litres.toFixed(2) : '—'}</td>
-      <td class="amt">${fmt(r.fuelCost)}</td>
-      <td class="amt">${fmt(r.other)}</td>
-      <td class="amt ${r.profit >= 0 ? 'pos' : 'neg'}">${fmt(r.profit)}</td>
-      <td><button class="btn-danger btn-small" onclick="deleteBoltDay('${r.id}')">✕</button></td>
-    `;
-    tb.appendChild(tr);
-  });
-  renderFuelSection(); renderCommissionTable(); renderRepairTable();
-}
-
 /* ============================================================
    FUEL PURCHASE
 ============================================================ */
