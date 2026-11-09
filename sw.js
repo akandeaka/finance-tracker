@@ -1,4 +1,4 @@
-const CACHE = 'fintracker-v2';
+const CACHE = 'fintracker-v3';
 const ASSETS = [
   './',
   './index.html',
